@@ -1,0 +1,74 @@
+{
+  "name": "ALFA: Chequeo de saturación y compliance",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "days", "daysInterval": 1, "triggerAtHour": 6 }] } },
+      "name": "Cron diario 6am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://alfa-subagent-producto:4001/internal/products/pending-saturation-check",
+        "headerParametersUi": {
+          "parameter": [{ "name": "X-Internal-Token", "value": "={{$env.INTERNAL_AUTOMATION_TOKEN}}" }]
+        }
+      },
+      "name": "GET pendientes saturación",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [220, -80]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://alfa-subagent-producto:4001/tools/check_ad_saturation",
+        "jsonParameters": true,
+        "bodyParametersJson": "={{ { \"tenant_id\": $json.tenant_id, \"product_id\": $json.id } }}"
+      },
+      "name": "check_ad_saturation por producto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [440, -80]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://alfa-subagent-producto:4001/internal/products/pending-compliance-check",
+        "headerParametersUi": {
+          "parameter": [{ "name": "X-Internal-Token", "value": "={{$env.INTERNAL_AUTOMATION_TOKEN}}" }]
+        }
+      },
+      "name": "GET pendientes compliance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [220, 80]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://alfa-subagent-producto:4001/tools/check_import_compliance",
+        "jsonParameters": true,
+        "bodyParametersJson": "={{ { \"tenant_id\": $json.tenant_id, \"product_id\": $json.id, \"category\": $json.category } }}"
+      },
+      "name": "check_import_compliance por producto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [440, 80]
+    }
+  ],
+  "connections": {
+    "Cron diario 6am": {
+      "main": [
+        [
+          { "node": "GET pendientes saturación", "type": "main", "index": 0 },
+          { "node": "GET pendientes compliance", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "GET pendientes saturación": { "main": [[{ "node": "check_ad_saturation por producto", "type": "main", "index": 0 }]] },
+    "GET pendientes compliance": { "main": [[{ "node": "check_import_compliance por producto", "type": "main", "index": 0 }]] }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "restricted_categories": [
+    {
+      "category": "cosmeticos",
+      "reason": "Requiere registro/notificación ante el ISP (Instituto de Salud Pública) para venta en Chile"
+    },
+    {
+      "category": "dispositivos_medicos",
+      "reason": "Requiere registro sanitario ante el ISP"
+    },
+    {
+      "category": "electronica_electrica",
+      "reason": "Requiere certificación SEC para productos eléctricos comercializados en Chile"
+    },
+    {
+      "category": "alimentos",
+      "reason": "Requiere resolución sanitaria del Seremi de Salud"
+    },
+    {
+      "category": "armas_replicas",
+      "reason": "Prohibido o fuertemente regulado por la Dirección General de Movilización Nacional (DGMN)"
+    },
+    {
+      "category": "medicamentos",
+      "reason": "Venta restringida a farmacias autorizadas, requiere registro ISP"
+    },
+    {
+      "category": "suplementos_alimenticios",
+      "reason": "Requiere resolución sanitaria y rotulado en español conforme a normativa Seremi"
+    }
+  ]
+}

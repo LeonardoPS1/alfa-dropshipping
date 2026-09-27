@@ -1,0 +1,54 @@
+{
+  "name": "ALFA: Reporte diario de ROAS",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "days", "daysInterval": 1, "triggerAtHour": 9 }] } },
+      "name": "Cron diario 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://alfa-subagent-ads:4006/internal/campaigns/active",
+        "headerParametersUi": {
+          "parameter": [{ "name": "X-Internal-Token", "value": "={{$env.INTERNAL_AUTOMATION_TOKEN}}" }]
+        }
+      },
+      "name": "GET campañas activas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "const campaigns = $input.first().json.campaigns || [];\nconst lines = campaigns.map(c => `• ${c.platform} — spend $${c.spend} — ROAS ${c.roas}`);\nconst text = 'Reporte diario ALFA:\\n' + (lines.length ? lines.join('\\n') : 'Sin campañas activas.');\nreturn [{ json: { text } }];"
+      },
+      "name": "Armar mensaje resumen",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.EVOLUTION_API_URL}}/message/sendText/{{$env.EVOLUTION_INSTANCE}}",
+        "headerParametersUi": {
+          "parameter": [{ "name": "apikey", "value": "={{$env.EVOLUTION_API_KEY}}" }]
+        },
+        "jsonParameters": true,
+        "bodyParametersJson": "={{ { \"number\": $env.NOTIFICATION_WHATSAPP_NUMBER, \"text\": $json.text } }}"
+      },
+      "name": "Enviar por WhatsApp (Evolution API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [660, 0]
+    }
+  ],
+  "connections": {
+    "Cron diario 9am": { "main": [[{ "node": "GET campañas activas", "type": "main", "index": 0 }]] },
+    "GET campañas activas": { "main": [[{ "node": "Armar mensaje resumen", "type": "main", "index": 0 }]] },
+    "Armar mensaje resumen": { "main": [[{ "node": "Enviar por WhatsApp (Evolution API)", "type": "main", "index": 0 }]] }
+  }
+}

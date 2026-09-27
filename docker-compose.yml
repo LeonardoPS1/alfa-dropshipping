@@ -1,0 +1,179 @@
+version: "3.8"
+
+services:
+  alfa-orchestrator:
+    build: ./orchestrator
+    container_name: alfa-orchestrator
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_BASE_URL=${LLM_BASE_URL}
+      - LLM_MODEL=${LLM_MODEL}
+      - MCP_PRODUCTO_URL=http://alfa-subagent-producto:4001
+      - MCP_COPYWRITING_URL=http://alfa-subagent-copywriting:4002
+      - MCP_IMAGEN_URL=http://alfa-subagent-imagen:4003
+      - MCP_ECOMMERCE_URL=http://alfa-subagent-ecommerce:4004
+      - MCP_RRSS_URL=http://alfa-subagent-rrss:4005
+      - MCP_ADS_URL=http://alfa-subagent-ads:4006
+    depends_on:
+      - alfa-subagent-producto
+      - alfa-subagent-copywriting
+      - alfa-subagent-imagen
+      - alfa-subagent-ecommerce
+      - alfa-subagent-rrss
+      - alfa-subagent-ads
+    networks:
+      - alfa-network
+      - shared-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alfa.rule=Host(`alfa.aicorebots.com`)"
+      - "traefik.http.routers.alfa.entrypoints=websecure"
+      - "traefik.http.routers.alfa.tls.certresolver=letsencrypt"
+      - "traefik.http.services.alfa.loadbalancer.server.port=3000"
+
+  alfa-subagent-producto:
+    build: ./subagent-producto
+    container_name: alfa-subagent-producto
+    restart: unless-stopped
+    shm_size: '1gb'
+    environment:
+      - PORT=4001
+      - DATABASE_URL=${DATABASE_URL}
+      - DROPI_EMAIL=${DROPI_EMAIL}
+      - DROPI_PASSWORD=${DROPI_PASSWORD}
+      - META_AD_LIBRARY_TOKEN=${META_AD_LIBRARY_TOKEN}
+      - INTERNAL_AUTOMATION_TOKEN=${INTERNAL_AUTOMATION_TOKEN}
+    volumes:
+      - alfa-dropi-session:/app/.sessions
+    networks:
+      - alfa-network
+      - shared-network
+
+  alfa-subagent-copywriting:
+    build: ./subagent-copywriting
+    container_name: alfa-subagent-copywriting
+    restart: unless-stopped
+    environment:
+      - PORT=4002
+      - DATABASE_URL=${DATABASE_URL}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_BASE_URL=${LLM_BASE_URL}
+      - LLM_MODEL_COPY=${LLM_MODEL_COPY}
+    networks:
+      - alfa-network
+      - shared-network
+
+  alfa-subagent-imagen:
+    build: ./subagent-imagen
+    container_name: alfa-subagent-imagen
+    restart: unless-stopped
+    environment:
+      - PORT=4003
+      - DATABASE_URL=${DATABASE_URL}
+      - IMAGE_PROVIDER_API_KEY=${IMAGE_PROVIDER_API_KEY}
+      - IMAGE_PROVIDER_BASE_URL=${IMAGE_PROVIDER_BASE_URL}
+      - ASSET_STORAGE_PATH=/data/assets
+      - ASSET_PUBLIC_BASE_URL=${ASSET_PUBLIC_BASE_URL}
+    volumes:
+      - alfa-assets:/data/assets
+    networks:
+      - alfa-network
+      - shared-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alfa-assets.rule=Host(`assets.aicorebots.com`)"
+      - "traefik.http.routers.alfa-assets.entrypoints=websecure"
+      - "traefik.http.routers.alfa-assets.tls.certresolver=letsencrypt"
+      - "traefik.http.services.alfa-assets.loadbalancer.server.port=4003"
+
+  alfa-subagent-ecommerce:
+    build: ./subagent-ecommerce
+    container_name: alfa-subagent-ecommerce
+    restart: unless-stopped
+    environment:
+      - PORT=4004
+      - DATABASE_URL=${DATABASE_URL}
+      - SHOPIFY_SHOP_DOMAIN=${SHOPIFY_SHOP_DOMAIN}
+      - SHOPIFY_ADMIN_API_TOKEN=${SHOPIFY_ADMIN_API_TOKEN}
+      - SHOPIFY_API_VERSION=${SHOPIFY_API_VERSION}
+      - SHOPIFY_WEBHOOK_SECRET=${SHOPIFY_WEBHOOK_SECRET}
+    networks:
+      - alfa-network
+      - shared-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alfa-ecommerce.rule=Host(`ecommerce.alfa.aicorebots.com`)"
+      - "traefik.http.routers.alfa-ecommerce.entrypoints=websecure"
+      - "traefik.http.routers.alfa-ecommerce.tls.certresolver=letsencrypt"
+      - "traefik.http.services.alfa-ecommerce.loadbalancer.server.port=4004"
+
+  alfa-subagent-rrss:
+    build: ./subagent-rrss
+    container_name: alfa-subagent-rrss
+    restart: unless-stopped
+    environment:
+      - PORT=4005
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - META_PAGE_ACCESS_TOKEN=${META_PAGE_ACCESS_TOKEN}
+      - META_IG_BUSINESS_ACCOUNT_ID=${META_IG_BUSINESS_ACCOUNT_ID}
+      - TIKTOK_ACCESS_TOKEN=${TIKTOK_ACCESS_TOKEN}
+      - TIKTOK_ADVERTISER_ID=${TIKTOK_ADVERTISER_ID}
+    networks:
+      - alfa-network
+      - shared-network
+
+  alfa-subagent-ads:
+    build: ./subagent-ads
+    container_name: alfa-subagent-ads
+    restart: unless-stopped
+    environment:
+      - PORT=4006
+      - DATABASE_URL=${DATABASE_URL}
+      - META_AD_ACCOUNT_ID=${META_AD_ACCOUNT_ID}
+      - META_MARKETING_ACCESS_TOKEN=${META_MARKETING_ACCESS_TOKEN}
+      - TIKTOK_ACCESS_TOKEN=${TIKTOK_ACCESS_TOKEN}
+      - TIKTOK_ADVERTISER_ID=${TIKTOK_ADVERTISER_ID}
+      - ROAS_PAUSE_THRESHOLD=${ROAS_PAUSE_THRESHOLD}
+      - INTERNAL_AUTOMATION_TOKEN=${INTERNAL_AUTOMATION_TOKEN}
+    networks:
+      - alfa-network
+      - shared-network
+
+  alfa-dashboard:
+    build: ./dashboard
+    container_name: alfa-dashboard
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - ALFA_ORCHESTRATOR_URL=http://alfa-orchestrator:3000
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - DASHBOARD_ADMIN_EMAIL=${DASHBOARD_ADMIN_EMAIL}
+      - DASHBOARD_ADMIN_PASSWORD_HASH=${DASHBOARD_ADMIN_PASSWORD_HASH}
+    depends_on:
+      - alfa-orchestrator
+    networks:
+      - alfa-network
+      - shared-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alfa-dashboard.rule=Host(`dashboard.alfa.aicorebots.com`)"
+      - "traefik.http.routers.alfa-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.alfa-dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.services.alfa-dashboard.loadbalancer.server.port=3000"
+
+networks:
+  alfa-network:
+    driver: overlay
+  shared-network:
+    external: true
+
+volumes:
+  alfa-assets:
+  alfa-dropi-session:

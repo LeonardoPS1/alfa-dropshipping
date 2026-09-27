@@ -1,0 +1,153 @@
+schema: spec-driven
+
+context: |
+  Project: ALFA, a TypeScript monorepo of eight independently packaged services.
+  Architecture: Docker Compose coordinates one Next.js dashboard, one Express orchestrator, and six Express MCP subagents.
+  Persistence: PostgreSQL is shared across services; Redis supports queue/automation use where configured.
+  Style: Existing Node.js package boundaries, TypeScript tsconfig builds, npm package-lock files, and Dockerfiles are the observed conventions.
+  Testing: No project defines a test script or test suite; no root workspace test command exists.
+
+strict_tdd: false
+
+projects:
+  - path: dashboard
+    stack: Next.js 14, React 18, TypeScript
+    test_command: null
+    build_command: npm run build
+    framework: none detected
+    quality:
+      type_check: included in Next.js build; no separate script
+      lint: none detected
+      format: none detected
+  - path: orchestrator
+    stack: Node.js, Express 4, TypeScript
+    test_command: null
+    build_command: npm run build
+    framework: none detected
+    quality:
+      type_check: npm run build (tsc -p tsconfig.json)
+      lint: none detected
+      format: none detected
+  - path: subagent-ads
+    stack: Node.js, Express 4, TypeScript
+    test_command: null
+    build_command: npm run build
+    framework: none detected
+    quality:
+      type_check: npm run build (tsc -p tsconfig.json)
+      lint: none detected
+      format: none detected
+  - path: subagent-copywriting
+    stack: Node.js, Express 4, TypeScript
+    test_command: null
+    build_command: npm run build
+    framework: none detected
+    quality:
+      type_check: npm run build (tsc -p tsconfig.json)
+      lint: none detected
+      format: none detected
+  - path: subagent-ecommerce
+    stack: Node.js, Express 4, TypeScript, GraphQL client
+    test_command: null
+    build_command: npm run build
+    framework: none detected
+    quality:
+      type_check: npm run build (tsc -p tsconfig.json)
+      lint: none detected
+      format: none detected
+  - path: subagent-imagen
+    stack: Node.js, Express 4, TypeScript
+    test_command: null
+    build_command: npm run build
+    framework: none detected
+    quality:
+      type_check: npm run build (tsc -p tsconfig.json)
+      lint: none detected
+      format: none detected
+  - path: subagent-producto
+    stack: Node.js, Express 4, TypeScript, Playwright dependency
+    test_command: null
+    build_command: npm run build
+    framework: none detected
+    quality:
+      type_check: npm run build (tsc -p tsconfig.json)
+      lint: none detected
+      format: none detected
+  - path: subagent-rrss
+    stack: Node.js, Express 4, TypeScript, BullMQ
+    test_command: null
+    build_command: npm run build
+    framework: none detected
+    quality:
+      type_check: npm run build (tsc -p tsconfig.json)
+      lint: none detected
+      format: none detected
+
+testing:
+  workspace_test_command: null
+  strict_tdd_reason: >-
+    Strict TDD is disabled: although the agent configuration explicitly requests it,
+    the workspace has no single explicit root command that tests every in-scope project.
+    Project-local package scripts expose build commands only; do not substitute or
+    concatenate independent builds as a workspace test command.
+  test_layers:
+    unit: none detected
+    integration: none detected
+    end_to_end: none detected
+  coverage: none detected
+  ci: none detected
+  commands:
+    dashboard:
+      test: null
+      build: npm run build
+    orchestrator:
+      test: null
+      build: npm run build
+    subagent-ads:
+      test: null
+      build: npm run build
+    subagent-copywriting:
+      test: null
+      build: npm run build
+    subagent-ecommerce:
+      test: null
+      build: npm run build
+    subagent-imagen:
+      test: null
+      build: npm run build
+    subagent-producto:
+      test: null
+      build: npm run build
+    subagent-rrss:
+      test: null
+      build: npm run build
+
+rules:
+  proposal:
+    - State user impact, scope, non-goals, and rollback considerations for operational changes.
+  specs:
+    - Use Given/When/Then scenarios and RFC 2119 requirement terms where useful.
+    - Preserve existing boundaries between the dashboard, orchestrator, and independently deployed subagents.
+  design:
+    - Document affected service boundaries, data flows, and persistence/credential implications.
+  tasks:
+    - Group tasks by service and identify project-local verification commands.
+    - Do not claim tests exist where none are configured.
+  apply:
+    guidelines:
+      - Follow the existing TypeScript, npm, and Docker service conventions.
+    tdd: false
+    test_command: null
+  verify:
+    test_command: null
+    build_commands:
+      - npm run build --prefix dashboard
+      - npm run build --prefix orchestrator
+      - npm run build --prefix subagent-ads
+      - npm run build --prefix subagent-copywriting
+      - npm run build --prefix subagent-ecommerce
+      - npm run build --prefix subagent-imagen
+      - npm run build --prefix subagent-producto
+      - npm run build --prefix subagent-rrss
+  archive:
+    - Keep archive entries immutable and merge only verified specification deltas.

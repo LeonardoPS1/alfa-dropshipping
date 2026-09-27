@@ -1,0 +1,27 @@
+# Dependencies and generated build output
+node_modules/
+dist/
+.next/
+coverage/
+.turbo/
+.cache/
+.npm-cache/
+
+# Local environment, credentials, sessions, and keys
+.env
+.env.*
+!.env.example
+.sessions/
+*.log
+*.pem
+*.key
+
+# Temporary and local agent state
+.tmp/
+tmp/
+.temp/
+.atl/
+
+# OS/editor files
+.DS_Store
+Thumbs.db

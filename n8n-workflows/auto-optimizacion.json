@@ -1,0 +1,67 @@
+{
+  "name": "ALFA: Auto-optimización de campañas",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "hours", "hoursInterval": 4 }] } },
+      "name": "Cron cada 4h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://alfa-subagent-ads:4006/internal/campaigns/active",
+        "headerParametersUi": {
+          "parameter": [{ "name": "X-Internal-Token", "value": "={{$env.INTERNAL_AUTOMATION_TOKEN}}" }]
+        }
+      },
+      "name": "GET campañas activas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "const threshold = Number($env.ROAS_PAUSE_THRESHOLD || 1.2);\nconst minSpend = 5000;\nconst campaigns = $input.first().json.campaigns || [];\nreturn campaigns\n  .filter(c => c.roas < threshold && c.spend > minSpend)\n  .map(c => ({ json: c }));"
+      },
+      "name": "Filtrar bajo ROAS",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://alfa-subagent-ads:4006/internal/campaigns/{{$json.id}}/auto-pause",
+        "headerParametersUi": {
+          "parameter": [{ "name": "X-Internal-Token", "value": "={{$env.INTERNAL_AUTOMATION_TOKEN}}" }]
+        },
+        "jsonParameters": true,
+        "bodyParametersJson": "={{ { \"reason\": \"ROAS \" + $json.roas + \" por debajo del umbral \" + $env.ROAS_PAUSE_THRESHOLD } }}"
+      },
+      "name": "Auto-pausar campaña",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://alfa-orchestrator:3000/chat",
+        "jsonParameters": true,
+        "bodyParametersJson": "={{ { \"tenant_id\": \"00000000-0000-0000-0000-000000000001\", \"source\": \"automation\", \"message\": \"La campaña \" + $json.id + \" del producto \" + $json.product_id + \" fue pausada por bajo ROAS. Generá una nueva variante de creativo para reemplazarla.\" } }}"
+      },
+      "name": "Pedir nuevo creativo a ALFA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [880, 0]
+    }
+  ],
+  "connections": {
+    "Cron cada 4h": { "main": [[{ "node": "GET campañas activas", "type": "main", "index": 0 }]] },
+    "GET campañas activas": { "main": [[{ "node": "Filtrar bajo ROAS", "type": "main", "index": 0 }]] },
+    "Filtrar bajo ROAS": { "main": [[{ "node": "Auto-pausar campaña", "type": "main", "index": 0 }]] },
+    "Auto-pausar campaña": { "main": [[{ "node": "Pedir nuevo creativo a ALFA", "type": "main", "index": 0 }]] }
+  }
+}
