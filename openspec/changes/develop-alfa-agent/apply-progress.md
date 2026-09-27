@@ -116,3 +116,76 @@ This is a cumulative update to the earlier apply record and corrective rerun abo
 - Task 2.2: configured-token HTTP/authenticated request proof. Do not infer it from implementation or the missing-token 401.
 - Tasks 1.2, 1.4, 1.7–1.8 and all Phase 3–5 tasks remain outside PR1.
 - Remote branch existence/push are blocked: the ref query and subsequent normal (non-force) push of both refs each failed with a connection error to `github.com:443`. Do not claim remote delivery.
+
+## PR 1 task 2.2 — injected HTTP contract verification — 2026-09-27
+
+This follow-up continues the same PR1 work branch and preserves all prior task evidence above.
+
+### Task outcome
+
+- [x] 2.2 — Added an Express app factory with an injectable discovery search dependency. Production startup still calls the factory with no dependencies, so it uses the real `searchDropiCatalog` helper. There is no test-only environment flag or unauthenticated bypass.
+- Route contracts exercise missing and incorrect internal tokens (401), valid token plus trusted tenant/request UUID context (200 and exact trusted context forwarded), invalid tenant/request UUIDs (400), and a body-tenant mismatch (400). Rejected requests assert the injected search function is never called.
+- Auth retains the existing length check and `timingSafeEqual` comparison; the existing route response/error behavior is preserved.
+- The test factory injects a fake search function; no live Dropi request or external source call is made.
+
+### TDD and verification evidence
+
+| Check | Command / observed outcome |
+|---|---|
+| RED | Added `tests/server.contract.test.ts` before production changes. `npm.cmd run test:contract --prefix subagent-producto` with a temporary Node preload exited 1: 5 new HTTP contract tests failed at an assertion that the server must export an injectable Express factory; existing product contracts passed and the local PostgreSQL case skipped. This was a real assertion failure, not a missing-script/dependency failure. |
+| GREEN | Same product contract command with temporary `$TEMP` preload: exit 0; 13 tests total, 12 passed, 0 failed, 1 local PostgreSQL test skipped. The five HTTP route tests passed, including zero injected-search calls for rejected requests. |
+| Build | `npm.cmd run build --prefix subagent-producto` with the same temporary `os.userInfo` preload: exit 0 (`tsc -p tsconfig.json`). |
+| Runtime isolation | HTTP tests used ephemeral loopback Express servers and an injected fake. No local database or live Dropi credentials/calls were used. The pre-existing parent-reported disposable PostgreSQL race evidence remains separate. |
+| Cleanup | Temporary preload and test servers were removed/closed; no workaround file was added to the repository. |
+
+### Current cumulative PR 1 task state
+
+- [x] 1.1, 1.3, 1.6, 2.1, 2.2, 2.3, 2.4.
+- [ ] 1.5 remains pending: production ALFA schema/version and backup were not verified; disposable preflight does not replace these criteria.
+- Tasks 1.2, 1.4, 1.7–1.8 and all Phase 3–5 tasks remain outside this PR1 unit.
+
+### Files changed in this follow-up
+
+| File | Change |
+|---|---|
+| `subagent-producto/src/server.ts` | Exported `createProductApp`; dependency injection for discovery search; production startup retains real helper default and only listens when run as main module. |
+| `subagent-producto/tests/server.contract.test.ts` | Added route-level HTTP auth/context tests with a fake search dependency. |
+| `openspec/changes/develop-alfa-agent/tasks.md` | Marked only task 2.2 complete after the HTTP seam and existing atomic-upsert evidence were verified. |
+| `docs/implementation-status.md` | Updated current 2.2 status while preserving task 1.5 as pending. |
+
+### Work-unit boundary
+
+- Current branch: `feat/alfa-agent-pr1-db-verification`; intended PR1 base remains tracker `feat/alfa-agent`. No PR was opened.
+- Rollback: revert the server app-factory seam and its route tests together with the 2.2 status update; retain the earlier PR1 schema changes and previously completed task evidence.
+- Push only the child ref as requested. Remote access has already failed in this environment; do not retry if the same network failure persists.
+
+## PR 1 task 2.2 evidence and current state — 2026-09-27
+
+### Current cumulative task state
+
+- [x] 1.1, 1.3, 1.6, 2.1, 2.2, 2.3, 2.4.
+- [ ] 1.5 remains pending: deployed ALFA schema/version and production backup are not evidenced; disposable duplicate preflight is not a substitute.
+- Tasks 1.2, 1.4, 1.7–1.8 and all Phase 3–5 work remain out of this PR1 unit.
+
+### Route-level auth/runtime proof
+
+- RED before production edits: the five new route tests failed with assertion `server must export an injectable Express app factory`; seven existing runnable product contracts passed and the local PostgreSQL case skipped. This exposed the missing testable app boundary, not a missing script/dependency.
+- GREEN: `npm.cmd run test:contract --prefix subagent-producto` with a temporary `$TEMP` `os.userInfo` preload — exit 0; 14 tests total, 13 passed, 0 failed, 1 local database test skipped.
+- GREEN routes: missing token 401; wrong token 401; valid token/trusted tenant/request UUID 200 and exact trusted context reaches injected search; invalid tenant or request UUID 400; mismatched body tenant 400. Every rejected request asserted injected search call count zero.
+- App module import does not bind a port; each HTTP test runs on an ephemeral loopback Express server and closes it. No live Dropi request, credential, or external source call was used.
+- Existing `npm.cmd run build --prefix subagent-producto` with the same preload — exit 0 (`tsc -p tsconfig.json`). Temporary preload was deleted after verification.
+- Production `start`/`dev` entry still creates the app without dependencies, so the default real `searchDropiCatalog` helper is retained; no environment flag or public unauthenticated path was introduced. Token length checks and `timingSafeEqual` remain in the request middleware.
+- Task 2.2 acceptance combines these route contracts with the previously recorded source-level atomic upsert contracts and parent-reported PostgreSQL concurrency evidence. It does not claim a configured-token call against live Dropi or production DB.
+
+### Files changed in the 2.2 follow-up
+
+| File | Change |
+|---|---|
+| `subagent-producto/src/server.ts` | Added exported Express app factory and search dependency injection; preserved real-search default and production listen behavior. |
+| `subagent-producto/tests/server.contract.test.ts` | Added HTTP auth/context contracts and rejected-request zero-call assertions with a fake dependency. |
+| `openspec/changes/develop-alfa-agent/tasks.md` | Marked task 2.2 complete after observed route and persistence evidence. |
+| `docs/implementation-status.md` | Updated current task status; task 1.5 remains pending. |
+
+### Rollback boundary
+
+- Revert the factory/dependency seam and its server contract tests together with task 2.2 status edits. Keep unrelated earlier PR1 migration/product behavior and tasks intact.

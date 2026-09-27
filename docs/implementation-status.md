@@ -1,6 +1,6 @@
 # Implementation status
 
-This repository contains the PR 1 slice of the `develop-alfa-agent` Safe Product Discovery Vertical Slice. PR 1 is still partial because deployed ALFA schema/backup preflight (task 1.5) and configured-token HTTP verification (task 2.2) are pending. Disposable PostgreSQL migration/concurrency evidence does not establish a deployed system.
+This repository contains the PR 1 slice of the `develop-alfa-agent` Safe Product Discovery Vertical Slice. PR 1 remains partial because deployed ALFA schema/backup preflight (task 1.5) is pending. Disposable PostgreSQL migration/concurrency evidence does not establish a deployed system.
 
 ## Delivery status
 
@@ -12,17 +12,17 @@ This repository contains the PR 1 slice of the `develop-alfa-agent` Safe Product
 | Task 2.3: evidence-aware scoring and tenant-scoped product ownership | Complete | Implementation and contract coverage are present. |
 | Task 1.5: deployed-schema preflight, backup, and duplicate resolution | Pending | No production ALFA schema/version inspection or production ALFA backup is claimed. Disposable duplicate preflight returned zero groups but does not satisfy the production/backup portions. |
 | Task 1.6: migration forward/reverse execution | Complete | On a disposable PostgreSQL 17.9 database: migration 002 applied and schema/index verified, rollback verified, then migration re-applied. The disposable DB and role were removed. |
-| Task 2.2: HTTP auth boundary and PostgreSQL persistence behavior | Pending | Source implementation exists, but configured-token HTTP/trusted-context behavior is not proven. A prior missing-token request returned 401 only. |
+| Task 2.2: HTTP auth boundary and PostgreSQL persistence behavior | Complete | Route contracts prove missing/wrong tokens, invalid trusted UUIDs and mismatched body tenants are rejected before injected search; valid token/context is forwarded. Existing database contracts cover the atomic identity upsert; tests use an injected fake and do not call live Dropi. |
 | Task 2.4: PostgreSQL concurrency and tenant-isolation integration | Complete | Parent-reported contract run passed 8/8 including a real concurrent partial-unique-index race over an SSH tunnel; fresh local suite passed 7 with 1 DB test skipped. |
 | PR 2–4 work | Pending | Orchestration, dashboard, smoke harness, and deployment wiring tasks remain unchecked in OpenSpec. |
 
-See `openspec/changes/develop-alfa-agent/tasks.md` and `apply-progress.md` for the authoritative task ledger and detailed evidence. Tasks 1.1, 1.3, 1.6, 2.1, 2.3, and 2.4 are marked complete; 1.5 and 2.2 remain pending in this PR 1 slice.
+See `openspec/changes/develop-alfa-agent/tasks.md` and `apply-progress.md` for the authoritative task ledger and detailed evidence. Tasks 1.1, 1.3, 1.6, 2.1–2.4 are marked complete; 1.5 remains pending in this PR 1 slice.
 
 ## Recorded verification evidence
 
 Fresh local product-only checks in the current environment are:
 
-- `npm.cmd run test:contract --prefix subagent-producto` with a temporary OS preload — exit 0; 8 tests, 7 passed, 0 failed, 1 local PostgreSQL-only test skipped. A separate parent-reported authorized PostgreSQL tunnel run passed 8/8 including the concurrent race.
+- `npm.cmd run test:contract --prefix subagent-producto` with a temporary OS preload — exit 0; 14 tests, 13 passed, 0 failed, 1 local PostgreSQL-only test skipped. This includes route-level auth/context contracts with an injected search fake. A separate parent-reported authorized PostgreSQL tunnel run passed 8/8 including the concurrent race.
 - `npm.cmd run build --prefix subagent-producto` with the same temporary preload — exit 0 (`tsc -p tsconfig.json`).
 - Migration 002 forward/reverse/re-apply was verified on a disposable DB by the parent; this is not a production migration or backup claim.
 
