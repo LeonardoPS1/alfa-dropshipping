@@ -1,115 +1,64 @@
-import { Router } from 'express';
-import { callLlm, ChatMessage } from '../llm/client';
-import { allToolSchemas, findSubagentForTool } from '../mcp/registry';
-import { callTool } from '../mcp/client';
-import { logAgentCall } from '../db/pool';
+import { timingSafeEqual } from 'node:crypto';
+import { Request, Response, Router } from 'express';
+import { OrchestratorConfig } from '../config';
+import { ChatMessage, LlmResponse, callLlm } from '../llm/client';
+import { allToolSchemas } from '../mcp/registry';
 
-export const chatRouter = Router();
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_USER_MESSAGE_LENGTH = 2000;
+const SYSTEM_PROMPT = `Sos ALFA. Ayudás a evaluar productos con evidencia disponible. Para esta conversación solo podés buscar en el catálogo de Dropi y evaluar un producto ya guardado. No publiques, no escribas en Shopify, no crees campañas ni modifiques workflows. Si una operación falla o la evidencia no alcanza, explicalo sin inventar resultados.`;
 
-const SYSTEM_PROMPT = `Sos ALFA, el agente orquestador de un sistema de dropshipping.
-Respondés siempre en español, de forma directa y profesional.
-Coordinás subagentes especializados (producto, copywriting, imagen, ecommerce, rrss, ads) llamando a sus tools.
-Reglas importantes:
-- Antes de generar creativos para un producto, verificá que exista una evaluación (evaluations). Si no existe, avisá y ofrecé correrla primero.
-- Antes de publicar en Shopify, verificá que existan copy e imágenes generadas para ese producto.
-- Nunca ejecutes pause_underperformer sin antes mostrar el ROAS actual que lo justifica (llamá get_roas primero).
-- Si te llega un mensaje marcado como automatización (source: 'automation'), ejecutá la acción pedida directamente, sin pedir confirmación conversacional.
-- Justificá siempre tus recomendaciones de producto o de campaña con los datos concretos que obtuviste de las tools.`;
+export interface ChatDependencies {
+  config: OrchestratorConfig;
+  callLlm?: (messages: ChatMessage[], tools: ReturnType<typeof allToolSchemas>) => Promise<LlmResponse>;
+}
 
-const MAX_TOOL_HOPS = 6;
+export function createChatRouter(dependencies: ChatDependencies): Router {
+  const router = Router();
+  const invokeLlm = dependencies.callLlm ?? callLlm;
+  const { config } = dependencies;
 
-chatRouter.post('/', async (req, res) => {
-  const { tenant_id, message, source } = req.body as {
-    tenant_id: string;
-    message: string;
-    source?: 'chat' | 'automation';
-  };
-
-  if (!tenant_id || !message) {
-    return res.status(400).json({ error: 'tenant_id y message son requeridos' });
-  }
-
-  const tools = allToolSchemas();
-  const messages: ChatMessage[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: message },
-  ];
-
-  const attachments: string[] = [];
-
-  try {
-    let hops = 0;
-    while (hops < MAX_TOOL_HOPS) {
-      hops++;
-      const response = await callLlm(messages, tools);
-
-      if (response.toolCalls.length === 0) {
-        return res.json({ reply: response.content ?? '', attachments });
-      }
-
-      messages.push({
-        role: 'assistant',
-        content: response.content ?? '',
-      });
-
-      for (const call of response.toolCalls) {
-        const subagent = findSubagentForTool(call.name);
-        if (!subagent) {
-          messages.push({
-            role: 'tool',
-            tool_call_id: call.id,
-            name: call.name,
-            content: JSON.stringify({ error: `tool '${call.name}' no está registrada en ningún subagente` }),
-          });
-          continue;
-        }
-
-        let output: unknown;
-        try {
-          output = await callTool(subagent, call.name, { ...call.arguments, tenant_id });
-        } catch (err: any) {
-          output = { error: err.message };
-        }
-
-        await logAgentCall({
-          tenantId: tenant_id,
-          subagent: subagent.key,
-          toolName: call.name,
-          input: call.arguments,
-          output,
-          metadata: { triggered_by: source === 'automation' ? 'n8n' : 'chat' },
-        });
-
-        collectAttachments(output, attachments);
-
-        messages.push({
-          role: 'tool',
-          tool_call_id: call.id,
-          name: call.name,
-          content: JSON.stringify(output),
-        });
-      }
+  router.post('/', async (req: Request, res: Response) => {
+    if (!equalSecret(config.internalToken, req.header('X-Alfa-Internal-Token') ?? '')) {
+      return res.status(401).json({ error: 'unauthorized' });
     }
 
-    return res.json({
-      reply: 'Se alcanzó el límite de pasos de razonamiento para este mensaje. Pedime la siguiente acción por separado.',
-      attachments,
-    });
-  } catch (err: any) {
-    console.error('[chat] error', err);
-    return res.status(500).json({ error: err.message ?? 'error interno' });
-  }
-});
-
-function collectAttachments(output: unknown, attachments: string[]) {
-  if (!output || typeof output !== 'object') return;
-  const obj = output as Record<string, unknown>;
-  if (Array.isArray((obj as any).variants)) {
-    for (const v of (obj as any).variants) {
-      if (v?.url) attachments.push(v.url);
+    const tenantId = req.header('X-Alfa-Tenant-Id') ?? '';
+    const requestId = req.header('X-Alfa-Request-Id') ?? '';
+    if (!UUID_PATTERN.test(tenantId) || tenantId !== config.tenantId) {
+      return res.status(403).json({ error: 'untrusted_tenant' });
     }
-  }
-  if (typeof (obj as any).content === 'string' && /^https?:\/\//.test((obj as any).content)) {
-    attachments.push((obj as any).content as string);
-  }
+    if (!UUID_PATTERN.test(requestId)) return res.status(400).json({ error: 'invalid_request_id' });
+
+    const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body)
+      ? req.body as Record<string, unknown>
+      : {};
+    if (body.tenant_id !== undefined && body.tenant_id !== tenantId) {
+      return res.status(403).json({ error: 'tenant_context_mismatch' });
+    }
+    if (typeof body.message !== 'string' || !body.message.trim() || body.message.length > MAX_USER_MESSAGE_LENGTH) {
+      return res.status(400).json({ error: 'invalid_message' });
+    }
+
+    const messages: ChatMessage[] = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: body.message },
+    ];
+    try {
+      const response = await invokeLlm(messages, allToolSchemas());
+      if (response.toolCalls.length > 0) return res.status(422).json({ error: 'tool_calls_not_enabled' });
+      return res.json({ reply: response.content ?? '', attachments: [] });
+    } catch {
+      return res.status(502).json({ error: 'provider_unavailable' });
+    }
+  });
+
+  return router;
+}
+
+function equalSecret(expected: string, supplied: string): boolean {
+  if (!expected || !supplied) return false;
+  const expectedBytes = Buffer.from(expected);
+  const suppliedBytes = Buffer.from(supplied);
+  return expectedBytes.length === suppliedBytes.length && timingSafeEqual(expectedBytes, suppliedBytes);
 }
