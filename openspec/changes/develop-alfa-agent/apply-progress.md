@@ -71,3 +71,48 @@
 - Parent spot-check rerun: product contracts exited 0 (8 total, 7 passed, 0 failed, 1 PostgreSQL case skipped); product build exited 0. Temporary OS preload was removed after the run.
 - No tasks were checked during this rerun. Tasks 1.5, 1.6, 2.2, and 2.4 remain pending: deployed-schema inspection is unauthorized remotely, and required real-PostgreSQL checks cannot run without a local disposable instance. No credentials were invented or used.
 - Stop after this single corrective rerun; do not advance to PR 2 or retry the unavailable database path again without an environment/user-state change.
+
+## PR 1 evidence update — 2026-09-27
+
+This is a cumulative update to the earlier apply record and corrective rerun above; historical results are retained as historical evidence, not rewritten as if they happened now.
+
+### Current cumulative task state
+
+- [x] 1.1 — Product `test:contract` script and `tsx` dependency/lockfile are present.
+- [x] 1.3 — Product contract suite and guarded PostgreSQL integration harness are present.
+- [ ] 1.5 — Remains pending. The deployed ALFA schema/version and production ALFA backup were not verified. A disposable database duplicate preflight is not a substitute for this acceptance criterion.
+- [x] 1.6 — Migration 002 forward application, schema/index verification, rollback, and re-application were reported on a disposable PostgreSQL database.
+- [x] 2.1 — Stable source identity and nullable observed-price handling are implemented.
+- [ ] 2.2 — Remains pending. The configured-token HTTP path and full trusted-context request behavior were not proven; the earlier loopback 401 only proved fail-closed behavior with missing configuration.
+- [x] 2.3 — Evidence-aware scoring and tenant-owned persistence are implemented.
+- [x] 2.4 — Product contracts/build and real PostgreSQL concurrent identity-race/tenant-isolation scenario are evidenced below.
+
+### New database/runtime evidence
+
+- Parent-reported authorized disposable PostgreSQL session: SSH host fingerprint was verified and PostgreSQL version was 17.9. No secrets or credentials are recorded here.
+- A disposable database and role were created on that instance; migration 001 was applied; duplicate preflight returned zero groups; migration 002 was applied and its nullable evidence column and partial unique index verified; migration 002 rollback was verified and then re-applied.
+- Parent-reported `npm run test:contract --prefix subagent-producto` result: 8/8 passed, including the real concurrent partial-unique-index race through an SSH tunnel. The disposable database and role were removed afterward.
+- No production ALFA database backup or configured-token HTTP success is claimed. The existing shared/mixed n8n database is not an ALFA migration target; deployment requires a separate ALFA database on the same PostgreSQL instance.
+
+### Fresh local verification in this update
+
+| Check | Command / observed outcome |
+|---|---|
+| Initial exact contract attempt | `npm run test:contract --prefix subagent-producto` — exit 1 before test execution because Node 26.8.2 `tsx` failed in `node:os.userInfo()` with `uv_os_get_passwd returned ENOMEM`; PowerShell also emitted an access warning from its npm shim. This is an environment failure, not a test assertion failure. |
+| Focused contract suite | `npm.cmd run test:contract --prefix subagent-producto` with a temporary `$TEMP` Node preload for `os.userInfo` — exit 0; 8 tests, 7 passed, 0 failed, 1 local-PostgreSQL test skipped because no local `LOCAL_TEST_DATABASE_URL` was configured. The parent-reported remote-tunnel integration above is separate evidence. |
+| Build | `npm.cmd run build --prefix subagent-producto` with the same temporary preload — exit 0 (`tsc -p tsconfig.json`). |
+| Temporary harness cleanup | The temporary preload was removed in `finally`; no preload/workaround file is part of the repository. |
+| Remote Git refs | `git ls-remote --heads origin main feat/alfa-agent feat/alfa-agent-pr1-db-verification` failed because this environment could not connect to `github.com:443`. Remote branch existence and pushes therefore remain unverified/blocked. |
+
+### Updated work-unit and delivery evidence
+
+- PR 1 slice remains additive schema/evidence plus product identity/scoring behavior. Intended base: tracker branch `feat/alfa-agent`; work branch: `feat/alfa-agent-pr1-db-verification`. Both branches were created locally from the clean local `main` commit `0af69834be52c307113b72991fee6568e1d8d197` after the remote-ref check failed. No PR was opened.
+- Rollback boundary: revert only the PR1 product service/scraper/scoring, migration/test harness and PR1 task/status evidence changes. If migration 002 is applied in a real ALFA DB later, stop discovery writers first, retain additive schema during compatibility, and reverse only after backup and evidence-consumer review; never delete product/evaluation rows.
+- Review line count: `git diff --numstat feat/alfa-agent...feat/alfa-agent-pr1-db-verification` measured 62 additions and 16 deletions (78 changed lines) for this evidence/docs/task work unit, within the 400-line budget. This is not a count of the earlier bootstrap commit's already-present implementation.
+
+### Still pending / out of scope
+
+- Task 1.5: production ALFA schema/backup/duplicate preflight; disposable preflight evidence alone does not satisfy the deployed-schema and backup portions.
+- Task 2.2: configured-token HTTP/authenticated request proof. Do not infer it from implementation or the missing-token 401.
+- Tasks 1.2, 1.4, 1.7–1.8 and all Phase 3–5 tasks remain outside PR1.
+- Remote branch existence/push are blocked: the ref query and subsequent normal (non-force) push of both refs each failed with a connection error to `github.com:443`. Do not claim remote delivery.
