@@ -189,3 +189,34 @@ This follow-up continues the same PR1 work branch and preserves all prior task e
 ### Rollback boundary
 
 - Revert the factory/dependency seam and its server contract tests together with task 2.2 status edits. Keep unrelated earlier PR1 migration/product behavior and tasks intact.
+
+## PR 1 task 1.5 database preflight evidence — 2026-09-27
+
+This is a cumulative update; all prior evidence and historical blockers above are retained as historical snapshots.
+
+### Task outcome
+
+- [x] 1.5 — The authorized PostgreSQL 17.9 target was inspected before schema rollout. No pre-existing `alfa*` database or role was found. A separate `alfa_db` and least-privilege login role `alfa_app` were created; the shared/mixed `n8n` database was not used for ALFA migrations.
+- Before migrations, a custom-format backup was created at `/home/ubuntu/alfa-backups/alfa_db-pre-migration-20260927T181318Z.dump` (836 bytes). Its `pg_restore` catalog was validated, then it was successfully restored into a disposable restore database that was subsequently removed.
+- Migration 001 was applied. Before the uniqueness rollout, the duplicate non-null `(tenant_id, source, external_id)` preflight returned zero groups; no duplicate resolution, deletion, or merge was needed. Migration 002 was then applied.
+- A post-migration custom-format backup at `/home/ubuntu/alfa-backups/alfa_db-post-migration-20260927T181318Z.dump` (24303 bytes) was created and catalog-verified.
+- Generated credentials were stored only in Dokploy application environment variables `ALFA_DATABASE_NAME`, `ALFA_DATABASE_USER`, and `ALFA_DATABASE_PASSWORD`; secret values are intentionally not recorded or committed.
+- Scope limitation: no backup of pre-existing production ALFA data is claimed, because no prior ALFA database was found. This preflight is not application deployment or deploy-readiness evidence. PostgreSQL/PgBouncer are host-published and accessible only on the Compose bridge; stable private overlay connectivity remains unresolved. No `DATABASE_URL` or deployment success is claimed.
+
+### Current cumulative task state
+
+- [x] 1.1, 1.3, 1.5, 1.6, 2.1, 2.2, 2.3, 2.4 — eight of 27 total tasks complete.
+- [ ] 1.2, 1.4, 1.7, 1.8, Phase 3–5 — outside the PR 1 slice and remain unchecked.
+
+### Verification and work-unit evidence
+
+| Evidence | Result |
+|---|---|
+| Focused product contracts/build | No rerun needed for this evidence-only task update; latest recorded contracts/build remain 14 total, 13 passed, 0 failed, 1 local PostgreSQL case skipped, and build exit 0. The parent separately observed the authorized PostgreSQL 17.9 database operations above. |
+| Database preflight/runtime | Parent-observed target version 17.9; no prior ALFA DB/role; pre-migration backup restore-validated; duplicate preflight returned 0 groups before migration 002; post-migration backup catalog-verified. Disposable restore DB removed. |
+| Rollback boundary | Revert only the task 1.5 checkbox and its evidence/status documentation in `tasks.md`, this file, and `docs/implementation-status.md`. Do not drop the dedicated DB or role or remove migrations through this documentation-only change. |
+
+### PR 1 delivery boundary
+
+- Work remains on `feat/alfa-agent-pr1-db-verification`; intended PR 1 base is `feat/alfa-agent`. No PR 2 work is included. This update does not claim remote push or application deployment.
+- Local `git diff --numstat` for this update recorded 39 additions and 8 deletions (47 changed lines); prior work units are excluded from this evidence count.
