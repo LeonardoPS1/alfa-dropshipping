@@ -292,7 +292,7 @@ The automatic-mode gate identified three concrete defects and one stale artifact
 
 ## PR 3 — dashboard trust boundary and tenant-scoped pipeline — 2026-09-28
 
-This is a read-merged continuation of the complete PR1/PR2 apply history above. The selected store is hybrid with OpenSpec file locators; this file and `tasks.md` are updated in the change, and the Engram mirror uses `sdd/develop-alfa-agent/apply-progress`. No prior section or historical evidence was replaced.
+This is a read-merged continuation of the complete PR1/PR2 apply history above. The native dispatcher resolves this change to OpenSpec locators; the session had requested hybrid, and the Engram mirror uses `sdd/develop-alfa-agent/apply-progress`. This file and `tasks.md` are the OpenSpec artifacts. No prior section or historical evidence was replaced.
 
 ### Cumulative task state
 
@@ -379,5 +379,26 @@ Task 4.5 is complete: local contracts and production build pass; the guarded dis
 
 ### Final candidate measurement
 
-- PR3B final authored changed-line count is **294**; total additions plus deletions are **299** excluding generated `dashboard/package-lock.json`, including five build-generated lines in `dashboard/next-env.d.ts`. The slice remains under 400 lines.
+- PR3B final authored changed-line count is **329**; total additions plus deletions are **334** excluding generated `dashboard/package-lock.json`, including five build-generated lines in `dashboard/next-env.d.ts`. This remains under 400; PR3A remains 691 lines with an unapproved `size:exception` recommendation.
 - Final `git diff --check` passed. Task ledger readback confirms **22 complete and 5 pending**.
+
+## PR3 manual corrective pass — dashboard contract typecheck — 2026-09-28
+
+This one bounded manual correction fixes the validator's reproduced direct TypeScript errors. The working branch remains `feat/alfa-agent-pr3-dashboard-ui`; PR3A `7ad957a`, PR3B `cd16462`, and the corrective commits already on this branch remain intact.
+
+### RED → GREEN evidence
+
+- **RED:** `dashboard/node_modules/.bin/tsc.cmd --project dashboard/tsconfig.json --noEmit --incremental false` exited 2 before edits. The generic fake passed to `queryPipeline` returned concrete fixture rows but did not implement the polymorphic `Query<Row>` contract; the transport fake returned `{ data }` without the required numeric HTTP `status`.
+- The failures originate only in `dashboard/tests/pipeline.contract.test.ts`; production type contracts and `tsconfig.json` were left unchanged.
+- **GREEN:** the same direct `tsc` command exited 0 after the query test doubles declared the `pipeline.Query` generic contract and the success transport supplied `status: 200`.
+- `npm.cmd run test:contract --prefix dashboard` — exit 0; **14 tests, 13 passed, 0 failed, 1 guarded local-PostgreSQL scenario skipped** because `LOCAL_TEST_DATABASE_URL` was absent. A temporary external Node preload addressed the existing Node 26.8.2 `tsx` `uv_os_get_passwd returned ENOMEM` failure and was removed afterward.
+- `npm.cmd run build --prefix dashboard` — exit 0 with Next.js 14.2.35; compilation, type validation, page generation, and build tracing passed.
+- Parent's prior disposable PostgreSQL evidence remains **14/14, 0 skipped** against the unchanged guarded database harness, including migrated-schema compatibility and tenant A/B pipeline/detail isolation. No new database assertions were added, so this evidence remains applicable.
+- `git diff --check` is required again on the final committed candidate.
+
+### Scope and remaining verification warning
+
+- The type fixes are test-double-only. They do not weaken production types, alter project configuration, or skip compilation.
+- Task 4.5 remains complete based on direct typecheck, dashboard contracts, production build, SQL structural contracts, and the parent-provided disposable runtime evidence above. Cumulative state remains 22/27, with only Phase 5 tasks 5.1–5.5 pending.
+- Warning: the disposable fixture proves separate tenant A/B product/detail isolation but did not seed a wrong-tenant related row under the same product or multiple evaluations to check latest-row selection at runtime. Existing SQL contracts assert tenant equality and latest ordering. Expanding those runtime fixtures would require the parent to rerun the guarded disposable DB scenario; do not claim that stronger scenario was run.
+- Native SDD artifact store is OpenSpec. The session requested hybrid; the cumulative OpenSpec task/progress files are the native-locator artifacts, and `sdd/develop-alfa-agent/apply-progress` remains the Engram mirror.

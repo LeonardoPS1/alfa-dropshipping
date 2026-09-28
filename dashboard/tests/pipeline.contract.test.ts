@@ -45,11 +45,12 @@ test('pipeline SQL selects declared fields and tenant-scopes products, latest ev
   assert.equal(typeof pipeline.queryPipeline, 'function');
   let statement = '';
   let values: unknown[] = [];
-  await pipeline.queryPipeline?.(tenantA, async (sql: string, parameters: unknown[]) => {
+  const query: pipeline.Query = async <Row>(sql: string, parameters: unknown[]) => {
     statement = sql;
     values = parameters;
-    return { rows: [] };
-  });
+    return { rows: [] as Row[] };
+  };
+  await pipeline.queryPipeline?.(tenantA, query);
 
   assert.deepEqual(values, [tenantA]);
   assert.match(statement, /p\.tenant_id\s*=\s*\$1/i);
@@ -71,7 +72,8 @@ test('pipeline preserves evaluation evidence first and discovery evidence as fal
     { id: 'evaluated', evaluation_id: 'eval-a', evaluation_status: 'incomplete', source: 'dropi', source_id: 'sku-a', evaluation_evidence: { catalog_price: observed }, discovery_evidence: discovery },
     { id: 'discovered', evaluation_id: null, evaluation_status: 'discovered', source: 'dropi', source_id: 'sku-b', evaluation_evidence: null, discovery_evidence: discovery },
   ];
-  const result = await pipeline.queryPipeline?.(tenantA, async () => ({ rows }));
+  const query: pipeline.Query = async <Row>() => ({ rows: rows as unknown as Row[] });
+  const result = await pipeline.queryPipeline?.(tenantA, query);
   assert.equal(result?.[0].catalog_price_evidence, observed);
   assert.equal(result?.[0].evaluation_id, 'eval-a');
   assert.equal(result?.[0].evaluation_status, 'incomplete');
@@ -167,7 +169,7 @@ test('orchestrator client sends trusted headers and no caller-selected tenant bo
     internalToken: 'server-secret',
     post: async (url: string, data: unknown, headers: Record<string, string>) => {
       request = { url, data, headers };
-      return { data: { status: 'complete', reply: 'Done' } };
+      return { status: 200, data: { status: 'complete', reply: 'Done' } };
     },
   });
   assert.equal(request?.url, '/chat');
