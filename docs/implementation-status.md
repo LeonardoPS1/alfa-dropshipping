@@ -1,6 +1,6 @@
 # Implementation status
 
-This repository contains the PR 1 slice of the `develop-alfa-agent` Safe Product Discovery Vertical Slice. PR 1 remains partial because stable private overlay connectivity and deploy readiness remain unresolved. Task 1.5's authorized dedicated-database preflight and backup are complete; this does not claim application deployment or a production-data backup.
+This repository contains the PR 1 and PR 2 slices of the `develop-alfa-agent` Safe Product Discovery Vertical Slice. The cumulative SDD task state is 15/27 complete; dashboard, controlled smoke, and deployment work remains pending. Stable private overlay connectivity and deploy readiness remain unresolved, and this status does not claim application deployment or a production-data backup.
 
 ## Delivery status
 
@@ -14,19 +14,23 @@ This repository contains the PR 1 slice of the `develop-alfa-agent` Safe Product
 | Task 1.6: migration forward/reverse execution | Complete | On a disposable PostgreSQL 17.9 database: migration 002 applied and schema/index verified, rollback verified, then migration re-applied. The disposable DB and role were removed. |
 | Task 2.2: HTTP auth boundary and PostgreSQL persistence behavior | Complete | Route contracts prove missing/wrong tokens, invalid trusted UUIDs and mismatched body tenants are rejected before injected search; valid token/context is forwarded. Existing database contracts cover the atomic identity upsert; tests use an injected fake and do not call live Dropi. |
 | Task 2.4: PostgreSQL concurrency and tenant-isolation integration | Complete | Parent-reported contract run passed 8/8 including a real concurrent partial-unique-index race over an SSH tunnel; the latest local suite passed 13 with 1 DB test skipped. |
-| PR 2–4 work | Pending | Orchestration, dashboard, smoke harness, and deployment wiring tasks remain unchecked in OpenSpec. |
+| Tasks 1.2 and 1.7: orchestration contracts and test runner | Complete | Tenant/protocol contract coverage and the orchestrator `node:test`/`tsx` package command are present. |
+| Tasks 3.1–3.5: bounded orchestration and audit | Complete | Static two-tool routing, authenticated product transport, trusted context, transcript/budget validation, fail-closed audit, and both service contract/build checks are recorded in apply progress. |
+| PR 3–4 work | Pending | Dashboard, controlled smoke harness, and deployment wiring tasks remain unchecked in OpenSpec. |
 
-See `openspec/changes/develop-alfa-agent/tasks.md` and `apply-progress.md` for the authoritative task ledger and detailed evidence. Tasks 1.1, 1.3, 1.5, 1.6, and 2.1–2.4 are marked complete; other PR 1 tasks remain pending or outside the slice.
+See `openspec/changes/develop-alfa-agent/tasks.md` and `apply-progress.md` for the authoritative task ledger and detailed evidence. PR 1's eight tasks and PR 2's tasks 1.2, 1.7, and 3.1–3.5 are complete; task 1.4, task 1.8, and Phase 4–5 tasks remain pending.
 
 ## Recorded verification evidence
 
-Fresh local product-only checks in the current environment are:
+Fresh local PR 2 checks in the current environment are:
 
-- `npm.cmd run test:contract --prefix subagent-producto` with a temporary OS preload — exit 0; 14 tests, 13 passed, 0 failed, 1 local PostgreSQL-only test skipped. This includes route-level auth/context contracts with an injected search fake. A separate parent-reported authorized PostgreSQL tunnel run passed 8/8 including the concurrent race.
+- `npm.cmd run test:contract --prefix orchestrator` with a temporary OS preload — exit 0; 30 tests passed, 0 failed or skipped. The suite includes the six-turn/eight-call guards, forbidden-batch zero-dispatch behavior, audit failure, sanitization, and loopback HTTP contracts.
+- `npm.cmd run build --prefix orchestrator` with the same temporary preload — exit 0 (`tsc -p tsconfig.json`).
+- `npm.cmd run test:contract --prefix subagent-producto` with the same temporary preload — exit 0; 14 tests, 13 passed, 0 failed, 1 local PostgreSQL-only test skipped. A separate parent-reported authorized PostgreSQL tunnel run passed 8/8 including the concurrent race.
 - `npm.cmd run build --prefix subagent-producto` with the same temporary preload — exit 0 (`tsc -p tsconfig.json`).
 - Migration 002 forward/reverse/re-apply was verified on a disposable DB by the parent; this is not a production migration or backup claim.
 
-The test runner required a temporary Node preload in the original sandbox because `tsx` calling `node:os.userInfo()` failed there with `uv_os_get_passwd returned ENOMEM`. That preload was outside the project and is not part of this repository. These are recorded source-workspace results; rerun checks in the destination before relying on them. Do not interpret skipped database tests as passing.
+The test runner required a temporary Node preload outside the repository because Node 26.8.2 `tsx` calling `node:os.userInfo()` failed with `uv_os_get_passwd returned ENOMEM`. The exact orchestrator test command was first run without the preload and exited before tests; the temporary preload was removed after the reruns and is not part of this repository. Do not interpret the skipped product PostgreSQL test as passing.
 
 ## Deployment and Git blockers
 
@@ -35,4 +39,4 @@ The test runner required a temporary Node preload in the original sandbox becaus
 - The existing n8n database is shared/mixed and must not receive ALFA migrations. ALFA uses the separate `alfa_db` database on the same PostgreSQL instance; stable private overlay connectivity remains unresolved.
 - `docker-compose.yml` currently declares a public Traefik route for the orchestrator, while the OpenSpec deployment task requires removing that route. Do not deploy this snapshot as if that task were complete.
 - The product endpoint requires internal authorization configuration that is not yet wired through Compose; PR 4 tracks deployment credentials and trusted tenant configuration.
-- Feature-chain refs are local: `feat/alfa-agent` is the tracker branch and `feat/alfa-agent-pr1-db-verification` is the PR 1 work branch. Remote pushes are not claimed; no pull request has been opened.
+- Feature-chain refs are local: PR 1 is `feat/alfa-agent-pr1-db-verification`; PR 2 proceeds through commits `641f687` (A), `b1129ae` (B), `104b8e9` (C), and the current PR2D work-unit commit (D), based successively on the previous slice. The maintainer explicitly approved `size:exception` after one slicing pass; the exact PR2D authored line count is recorded in apply progress. No push or pull request was performed; parent handles remote delivery.

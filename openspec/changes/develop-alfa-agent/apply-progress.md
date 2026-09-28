@@ -220,3 +220,41 @@ This is a cumulative update; all prior evidence and historical blockers above ar
 
 - Work remains on `feat/alfa-agent-pr1-db-verification`; intended PR 1 base is `feat/alfa-agent`. No PR 2 work is included. This update does not claim remote push or application deployment.
 - Local `git diff --numstat` for this update recorded 39 additions and 8 deletions (47 changed lines); prior work units are excluded from this evidence count.
+
+## PR 2D — bounded audit hardening and final PR2 proof — 2026-09-28
+
+This is a read-merged continuation of the cumulative apply record above and the prior PR2 apply evidence. Historical PR1 evidence remains intact. PR2 is the authenticated, bounded orchestration/audit slice only; PR3, private networking, Dokploy configuration, deployment, and live external calls are not part of this work unit.
+
+### Cumulative task state
+
+- [x] PR1 tasks: 1.1, 1.3, 1.5, 1.6, 2.1, 2.2, 2.3, 2.4.
+- [x] PR2 tasks: 1.2, 1.7, 3.1, 3.2, 3.3, 3.4, 3.5.
+- Total: 15/27 complete. Still pending: 1.4, 1.8, Phase 4 tasks 4.1–4.5, and Phase 5 tasks 5.1–5.5.
+
+### PR2 chain and prior evidence
+
+- Local feature-branch chain: PR2A `641f687` → PR2B `b1129ae` → PR2C `104b8e9` → PR2D (this work unit), based on PR2C. The current branch is `feat/alfa-agent-pr2-audit`; no branch boundary was rewritten.
+- PR2A–C implemented the static product-only tool allowlist and authenticated transport, trusted tenant/request context, provider transcript validation and bounded dispatch, audit linkage, and the offline route/transport contracts. Existing RED evidence and prior PR2 check results remain historical evidence; this apply did not claim to reproduce prior RED observations.
+- PR2D adds bounded recursive audit sanitization (depth, key, array, and string limits), expands sensitive-key redaction to credentials/connection strings, sanitizes audit metadata, and records the partial outcome distinctly before halting provider continuation. The behavior matches the design's attributable, bounded, fail-closed audit contract.
+
+### Fresh PR2D verification
+
+The resolved mode is Standard (`strict_tdd: false` in `openspec/config.yaml`). No Strict TDD evidence is claimed. The exact orchestrator contract command was first run without a workaround and exited before test discovery because Node 26.8.2 `tsx` failed in `node:os.userInfo()` with `uv_os_get_passwd returned ENOMEM`. The following checks were then rerun with a temporary `$NODE_OPTIONS` preload at `D:\Codex\.test-node-os-preload.cjs`, outside the repository; the file and environment override were removed afterward.
+
+| Check | Command / observed outcome |
+|---|---|
+| Initial environment attempt | `npm.cmd run test:contract --prefix orchestrator` — exit 1 before tests; Node 26.8.2 reported `uv_os_get_passwd returned ENOMEM`. |
+| Orchestrator contracts | `npm.cmd run test:contract --prefix orchestrator` with the temporary preload — exit 0; 30 tests passed, 0 failed, 0 skipped. The tests cover bounded audit, sensitive-value redaction, partial failure, forbidden batch zero-dispatch, turn/call budgets, and loopback HTTP contracts. |
+| Orchestrator build | `npm.cmd run build --prefix orchestrator` with the same preload — exit 0 (`tsc -p tsconfig.json`). |
+| Product contracts | `npm.cmd run test:contract --prefix subagent-producto` with the same preload — exit 0; 14 tests, 13 passed, 0 failed, 1 local PostgreSQL-only test skipped because no local `LOCAL_TEST_DATABASE_URL` was configured. The skipped case is not a pass. |
+| Product build | `npm.cmd run build --prefix subagent-producto` with the same preload — exit 0 (`tsc -p tsconfig.json`). |
+| Candidate whitespace | `git diff --check` — exit 0 on the final candidate. |
+| Runtime harness | The contract suite exercised the Express route on ephemeral loopback servers with injected provider/tool/audit dependencies; all 30 orchestrator cases passed. No live LLM, Dropi, n8n, database, Dokploy, or SSH operation was used. |
+
+### PR2D work-unit evidence and rollback
+
+- Focused check: orchestrator contract suite — 30/30 passed after the temporary environment workaround; both in-scope service builds and the product contracts also completed with the outcomes above.
+- Rollback boundary: revert only the PR2D changes to `orchestrator/src/db/pool.ts`, `orchestrator/src/routes/chat.ts`, `orchestrator/tests/orchestration.contract.test.ts`, and the PR2D task/status evidence in this file, `tasks.md`, and `docs/implementation-status.md`. This leaves PR2A–C and PR1 boundaries intact.
+- No generated lockfile is part of PR2D. After one honest slicing pass, the maintainer explicitly approved `size:exception`; do not minimize code, omit tests/docs, or alter the established A/B/C boundaries to fit 400 lines.
+- Final PR2D authored additions plus deletions against PR2C `104b8e9`: **487 lines (456 additions + 31 deletions)**. No generated lockfile is included. This exceeds the default 400-line review budget; the explicit `size:exception` covers this cohesive bounded audit-hardening slice.
+- No push, pull request, or deployment was performed. Parent handles remote delivery.
