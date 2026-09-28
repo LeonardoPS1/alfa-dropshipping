@@ -10,6 +10,7 @@ const smokeModule = (() => {
   try { return require('../scripts/smoke-discovery') as Record<string, any>; }
   catch { return {}; }
 })();
+const parsePgConnectionString = require('pg-connection-string') as (connectionString: string) => Record<string, unknown>;
 const productServerModule = (() => {
   try { return require('../../subagent-producto/src/server') as Record<string, any>; }
   catch { return {}; }
@@ -72,5 +73,33 @@ test('smoke database configuration is explicit, disposable, and loopback-only', 
   assert.equal(
     smokeModule.loadSmokeDatabaseConfig({ ALFA_SMOKE_DATABASE_URL: 'postgres://localhost/alfa_smoke' }).databaseName,
     'alfa_smoke',
+  );
+});
+
+test('smoke rejects PostgreSQL connection-string query parameters before opening a connection', () => {
+  const bypass = 'postgres://localhost/alfa_smoke?host=remote.example';
+  assert.equal(parsePgConnectionString(bypass).host, 'remote.example', 'installed pg parser must demonstrate the host override');
+
+  const destinationOverrides = [
+    'host=remote.example',
+    '%68ost=remote.example',
+    'host=%2Fvar%2Frun%2Fpostgresql',
+    'hostaddr=remote.example',
+    'port=5432',
+    'service=remote-service',
+    'servicefile=%2Ftmp%2Fpg_service.conf',
+  ];
+  for (const query of destinationOverrides) {
+    assert.throws(
+      () => smokeModule.loadSmokeDatabaseConfig({ ALFA_SMOKE_DATABASE_URL: `postgres://localhost/alfa_smoke?${query}` }),
+      /query parameters are not accepted/i,
+      `smoke must reject connection-string parameters: ${query}`,
+    );
+  }
+
+  assert.equal(
+    smokeModule.loadSmokeDatabaseConfig({ ALFA_SMOKE_DATABASE_URL: 'postgres://localhost/alfa_smoke' }).databaseName,
+    'alfa_smoke',
+    'ordinary loopback URLs without query parameters remain accepted',
   );
 });

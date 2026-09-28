@@ -539,3 +539,33 @@ This entry supersedes the earlier pending-acceptance snapshot above without eras
 - Controlled smoke and tenant seed: `orchestrator/scripts/smoke-discovery.ts`.
 - Corrective commit: `9c3057e8299ff61af4528bd4b8d4a4c9fae63c14`; 130 authored changed lines (125 additions, 5 deletions) in the corrective code/test/progress work unit.
 - Repository runbook: `docs/discovery-rollout.md` records successful disposable smoke and parse-only Compose validation while keeping deployment claims explicitly unverified.
+
+## PR4 disposable-target guard correction — PostgreSQL URL query overrides — 2026-09-28
+
+An independent gate found that checking `new URL(ALFA_SMOKE_DATABASE_URL).hostname` alone did not constrain the destination actually selected by the installed `pg-connection-string` parser. The URL `postgres://localhost/alfa_smoke?host=remote.example` has a loopback URL hostname, but the parser sets its effective `host` to `remote.example`. The same parser copies query keys into connection config, uses `port` as an override, and accepts `host` values that select a Unix-domain socket; encoded query keys are decoded by URL search-parameter handling. `hostaddr` and `service` keys are preserved by the parser but are not used as destination selectors by the installed pure-JavaScript `pg` connection-parameter code. To avoid depending on a partial list or precedence assumptions, the smoke now rejects every URL query parameter before constructing `Pool`.
+
+### RED → GREEN evidence
+
+- **RED:** Added a no-connection contract reproducing the parser bypass and testing `host`, encoded `%68ost`, encoded socket-path host, `hostaddr`, `port`, `service`, and `servicefile` parameters. The installed parser reproduction returned `remote.example`; before the fix, the focused test failed because the guard accepted `host=remote.example`.
+- **GREEN:** The focused deployment/smoke contracts passed 6/6 after the guard rejected all query parameters. Plain `postgres://localhost/alfa_smoke` remains accepted; the database-name disposable guard remains unchanged.
+- A separate direct reproduction after the fix printed `effectiveParserHost=remote.example` and `guard=ALFA_SMOKE_DATABASE_URL query parameters are not accepted; use a plain loopback URL`. It constructed no database connection.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `npm.cmd run test:contract --prefix orchestrator` | Exit 0; 41 passed, 0 failed, 0 skipped. |
+| `npm.cmd run build --prefix orchestrator` | Exit 0. |
+| Smoke + focused test strict TypeScript check | Exit 0 for `smoke-discovery.ts` and `deployment-smoke.contract.test.ts`. |
+| Missing-URL smoke | Expected exit 1 before connecting; output contained `ALFA_SMOKE_DATABASE_URL_REQUIRED`. |
+| Parser override reproduction | URL parser selected remote host; guard rejected it before pool creation. |
+| Product/dashboard checks | Not rerun: this correction changes only orchestrator smoke URL validation and its contracts. Their earlier PR4 results remain the latest results. |
+| `git diff --check` | Exit 0. |
+
+The parent-provided normal disposable smoke is not rerun: its accepted URL has no query component and thus follows the same effective host through both parsers; this correction only rejects query-bearing connection strings before pool construction. Task `5.2` and cumulative `27/27` remain complete with this additional guard test. No database connection, production/live service, SSH, deployment, or Compose change was made in this corrective pass.
+
+### Final PR4 size accounting
+
+- Candidate base: final published PR3B `2e2366f41b43792d81bfe24a54578441b9205fb0`.
+- Parent validator's pre-correction count: 703 authored lines (682 additions + 21 deletions). The final candidate count, including this guard and cumulative SDD/runbook artifacts but excluding generated package lockfiles, is **768** (747 additions + 21 deletions).
+- After one honest cohesive slicing pass, applied the maintainer's standing pre-approval for `size:exception` to this 768-line candidate. The protected loopback harness, deployment wiring, end-to-end smoke, and rollback/runbook form one acceptance boundary; splitting the safety guard away would leave the smoke unsafe or leave the security-boundary candidate without its acceptance contract. No tests or documentation were removed to reduce size.

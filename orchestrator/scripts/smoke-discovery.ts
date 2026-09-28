@@ -42,6 +42,10 @@ export function loadSmokeDatabaseConfig(env: Record<string, string | undefined> 
   if (!['postgres:', 'postgresql:'].includes(parsed.protocol)) {
     throw new Error('ALFA_SMOKE_DATABASE_URL must use PostgreSQL');
   }
+  // pg-connection-string applies URL query keys as config overrides (notably host); accept none.
+  if (!parsed.searchParams.keys().next().done) {
+    throw new Error('ALFA_SMOKE_DATABASE_URL query parameters are not accepted; use a plain loopback URL');
+  }
   if (!isLoopbackHost(parsed.hostname)) {
     throw new Error('ALFA_SMOKE_DATABASE_URL must target loopback; remote hosts are not accepted');
   }
