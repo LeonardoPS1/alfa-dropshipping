@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { queryPipeline } from '../../src/lib/pipelineQuery';
+import { queryPipeline, type Query } from '../../src/lib/pipelineQuery';
 import { queryProductDetail } from '../../src/lib/productDetail';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
@@ -22,6 +22,10 @@ export async function runPostgresTenantIsolationScenario(connectionString: strin
   const productB = randomUUID();
   const evaluationB = randomUUID();
   const sourceId = `dashboard-contract-${randomUUID()}`;
+  const testQuery: Query = async <Row>(sql: string, values: unknown[]) => {
+    const result = await pool.query(sql, values);
+    return { rows: result.rows as unknown as Row[] };
+  };
 
   try {
     await pool.query('BEGIN');
@@ -35,12 +39,12 @@ export async function runPostgresTenantIsolationScenario(connectionString: strin
       [evaluationB, tenantB, productB, { catalog_price: { status: 'observed', value: 99, source: 'contract', source_id: sourceId } }]
     );
 
-    const pipeline = await queryPipeline(tenantA, (sql, values) => pool.query(sql, values));
+    const pipeline = await queryPipeline(tenantA, testQuery);
     assert.equal(pipeline.length, 1);
     assert.equal(pipeline[0].id, productA);
     assert.equal(pipeline[0].catalog_price_evidence && (pipeline[0].catalog_price_evidence as { value: number }).value, 14);
 
-    const detail = await queryProductDetail(productB, tenantA, (sql, values) => pool.query(sql, values));
+    const detail = await queryProductDetail(productB, tenantA, testQuery);
     assert.equal(detail.product, null);
     assert.deepEqual(detail.evaluations, []);
     assert.deepEqual(detail.creatives, []);

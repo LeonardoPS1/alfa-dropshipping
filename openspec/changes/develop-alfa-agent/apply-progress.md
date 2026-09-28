@@ -344,3 +344,40 @@ The documented project mode is Standard (`strict_tdd: false` in `openspec/config
 - Run the guarded A/B integration only after an explicit local disposable `LOCAL_TEST_DATABASE_URL` is provided and confirmed loopback/test-only.
 - Complete task 4.4 only after UI compilation/behavior is verified; complete 4.5 only after contract/build checks and the database runtime case have the evidence required by the task.
 - PR3B authored additions plus deletions: **237 lines**, excluding generated `dashboard/package-lock.json`; this is the measured 236-line final-candidate diff plus this evidence line and remains within 400.
+## PR3 corrective rerun — dashboard completion
+
+This append supersedes the earlier PR3 pending-task/build/database blocker status above without removing its historical record. It continues the feature-branch chain on `feat/alfa-agent-pr3-dashboard-ui`; PR3A `7ad957a` and PR3B `cd16462` were not rewritten.
+
+### Cumulative task state
+
+- [x] PR1 and PR2: 15 tasks.
+- [x] PR3: 1.4, 1.8, and 4.1–4.5.
+- [ ] PR4: 5.1–5.5 remain pending and out of scope.
+- Cumulative state: **22/27 complete; only 5.1–5.5 pending.**
+
+### Corrective evidence
+
+- Parent-provided guarded disposable PostgreSQL 17.9 evidence: migrations 001/002 applied; duplicate preflight returned zero; migration 002 rollback and re-application passed; guarded contract command passed **14/14, 0 skipped**, including tenant A/B pipeline and detail isolation. The random disposable database and role were removed. Only `LOCAL_TEST_DATABASE_URL` aimed at a verified loopback tunnel was used; no production database or credential was persisted. A listener-shutdown WinError 10038 occurred only after the tests passed; cleanup succeeded.
+- Local `npm.cmd run test:contract --prefix dashboard`: **14 total, 13 passed, 0 failed, 1 skipped** (local PostgreSQL URL absent). It passed with a temporary `$TEMP` `node:os.userInfo()` preload because Node 26.8.2 otherwise fails inside `tsx` with `uv_os_get_passwd returned ENOMEM`; the preload was removed. This local skip is separate from, and does not negate, the parent-reported 14/14 disposable-DB run.
+- `npm.cmd run build --prefix dashboard`: initial builds exposed TypeScript incompatibilities in the generic PostgreSQL adapter casts and the integration test's query callback. Minimal compile-only fixes were made to `pipelineQuery.ts`, `productDetail.ts`, and `tests/helpers/postgres-pipeline.integration.ts`. The final exact build passed with Next.js **14.2.35**, compiling, lint/type validation, static page generation, and route trace steps successfully.
+- Parent installed dependencies with `npm.cmd ci --prefix dashboard --include=dev`. npm reports **4 vulnerabilities: 2 moderate, 1 high, 1 critical**. No audit fix, force option, or dependency-major change was run.
+- `git diff --check` is required on the final candidate and will be recorded after this append and task/status updates.
+
+### Task 4.4 and 4.5 evidence
+
+Task 4.4 is complete: the board/card/detail UI exposes persisted evaluation/source identity and evidence status/provenance, retains discovered/incomplete distinctions, renders unavailable evidence honestly, and keeps detail/related reads within trusted tenant scope. Contract coverage directly checks these paths; the database run proves the actual tenant-isolated pipeline/detail reads.
+
+Task 4.5 is complete: local contracts and production build pass; the guarded disposable PostgreSQL run covers actual schema/query compatibility, cross-tenant isolation, detail reads, empty/error distinction, and read-only query behavior. Evidence presentation and no-mutation boundaries are also asserted by the contract suite. No live service or production database was accessed.
+
+### Branch and rollback boundary
+
+- PR2D final base: `1d988f7`.
+- PR3A parent: `7ad957a` on `feat/alfa-agent-pr3-dashboard`, authored changed lines **691** excluding generated package lock; the one allowed backend/contracts vs UI split is exhausted. Retain the `size:exception` recommendation for PR3A; no approval is claimed.
+- PR3B child: `cd16462` on `feat/alfa-agent-pr3-dashboard-ui`, parent PR3A `7ad957a`; authored changed lines were **237 before this corrective rerun**. Final count will be recalculated from the PR3A base excluding generated package-lock changes.
+- Rollback: revert only new corrective type fixes and task/status evidence to restore `cd16462`; reverting PR3B restores PR3A; reverting PR3A then returns to PR2D `1d988f7`. Preserve migration 002 and product/evaluation evidence; do not delete rows.
+- No push, amend, rebase, force, Compose/env edit, private networking, deployment, remote DB access, or PR4 work was performed.
+
+### Final candidate measurement
+
+- PR3B final authored changed-line count is **289**; total additions plus deletions are **294** excluding generated `dashboard/package-lock.json`, including five build-generated lines in `dashboard/next-env.d.ts`. The slice remains under 400 lines.
+- Final `git diff --check` passed. Task ledger readback confirms **22 complete and 5 pending**.

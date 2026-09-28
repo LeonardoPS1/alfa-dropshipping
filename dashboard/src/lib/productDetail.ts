@@ -51,5 +51,5 @@ export async function queryProductDetail(
 
 async function defaultQuery<Row>(sql: string, values: unknown[]): Promise<QueryResult<Row>> {
   const { pool } = await import('./db');
-  return pool.query(sql, values) as Promise<QueryResult<Row>>;
+  return pool.query(sql, values) as unknown as Promise<QueryResult<Row>>;
 }

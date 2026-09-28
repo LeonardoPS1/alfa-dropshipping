@@ -1,6 +1,6 @@
 # Implementation status
 
-This repository contains the PR 1 and PR 2 slices plus partial PR 3 dashboard work for the `develop-alfa-agent` Safe Product Discovery Vertical Slice. The cumulative SDD task state is 20/27 complete; dashboard rendering/build acceptance, controlled smoke, and deployment work remain pending. Stable private overlay connectivity and deploy readiness remain unresolved, and this status does not claim application deployment or a production-data backup.
+This repository contains the PR 1, PR 2, and PR 3 dashboard slices for the `develop-alfa-agent` Safe Product Discovery Vertical Slice. The cumulative SDD task state is 22/27 complete; only PR 4 tasks 5.1–5.5 remain pending. No application deployment or live production-data operation is claimed by this dashboard completion.
 
 ## Delivery status
 
@@ -16,11 +16,10 @@ This repository contains the PR 1 and PR 2 slices plus partial PR 3 dashboard wo
 | Task 2.4: PostgreSQL concurrency and tenant-isolation integration | Complete | Parent-reported contract run passed 8/8 including a real concurrent partial-unique-index race over an SSH tunnel; the latest local suite passed 13 with 1 DB test skipped. |
 | Tasks 1.2 and 1.7: orchestration contracts and test runner | Complete | Tenant/protocol contract coverage and the orchestrator `node:test`/`tsx` package command are present. |
 | Tasks 3.1–3.5: bounded orchestration and audit | Complete | Static two-tool routing, authenticated product transport, trusted context, transcript/budget validation, and fail-closed audit are covered; the corrective contract run verifies body-tenant mismatch auditing and bounded value/key sanitization. |
-| Tasks 1.4, 1.8, 4.1–4.3: dashboard contracts, test runner, trusted proxy, and tenant-scoped query | Complete | Dashboard contract suite passed 13 tests with 1 explicit local-PostgreSQL skip; task checkboxes are recorded in OpenSpec. |
-| Tasks 4.4–4.5: dashboard evidence rendering and final runtime/build checks | Pending | UI/detail edits are present, but dashboard build could not start because local dependencies are absent and npm registry access was denied; PostgreSQL harness skipped because `LOCAL_TEST_DATABASE_URL` is unset. |
+| Tasks 1.4, 1.8, 4.1–4.5: dashboard contracts, test runner, trusted proxy, tenant-scoped query, evidence UI, and final checks | Complete | Local contracts passed 13/14 with the guarded local-PostgreSQL scenario skipped; a parent-reported disposable PostgreSQL 17.9 run passed 14/14 including A/B pipeline/detail isolation. The Next.js production build passed after compile-only type fixes. |
 | Phase 5 deployment/smoke work | Pending | Controlled smoke harness and deployment wiring tasks remain outside PR 3. |
 
-See `openspec/changes/develop-alfa-agent/tasks.md` and `apply-progress.md` for the authoritative task ledger and detailed evidence. PR 1's eight tasks, PR 2's tasks 1.2, 1.7, and 3.1–3.5, and PR 3 tasks 1.4, 1.8, and 4.1–4.3 are complete; task 4.4, 4.5, and Phase 5 tasks remain pending.
+See `openspec/changes/develop-alfa-agent/tasks.md` and `apply-progress.md` for the authoritative task ledger and detailed evidence. The only pending tasks are 5.1–5.5 in Phase 5.
 
 ## Recorded verification evidence
 
@@ -34,16 +33,17 @@ Fresh local PR 2 checks in the current environment are:
 
 The test runner required a temporary Node preload outside the repository because Node 26.8.2 `tsx` calling `node:os.userInfo()` failed with `uv_os_get_passwd returned ENOMEM`. The exact orchestrator test command was first run without the preload and exited before tests; the temporary preload was removed after the reruns and is not part of this repository. Do not interpret the skipped product PostgreSQL test as passing.
 
-Fresh local PR 3 checks in the current environment are:
+Fresh PR 3 checks in the current environment are:
 
-- The dashboard contract suite, `npm.cmd run test:contract --prefix dashboard`, exited 0 under Node 26.8.2: 14 tests, 13 passed, 0 failed, 1 local-PostgreSQL scenario skipped. Because dashboard dependencies are not installed in this workspace, the command used the existing sibling product package's `tsx` executable via `PATH`; a temporary `node:os.userInfo()` preload outside the repository avoided the observed `uv_os_get_passwd returned ENOMEM` failure. Neither workaround is committed.
-- `npm.cmd run build --prefix dashboard` exited 1 before compilation because `next` is not installed (`"next" no se reconoce como un comando interno o externo`). `npm.cmd install --prefix dashboard --ignore-scripts` could not fetch `tsx` from `registry.npmjs.org` (EACCES in the network-restricted environment); no remote deployment, database, or live service was accessed.
-- The guarded PostgreSQL integration scenario is present and rejects non-loopback URLs before connecting. It was skipped because `LOCAL_TEST_DATABASE_URL` is unset; `DATABASE_URL` is never used as a fallback. No production DB was touched.
-- `git diff --check` passed on PR 3A before its commit. The PR 3B final-candidate whitespace result is recorded in the cumulative apply-progress after the final candidate check.
+- `npm.cmd run test:contract --prefix dashboard` exited 0 under Node 26.8.2: 14 tests, 13 passed, 0 failed, 1 local PostgreSQL scenario skipped. A temporary preload outside the repository was required because `tsx` initially failed with `uv_os_get_passwd returned ENOMEM`; the preload was removed afterward.
+- Parent-reported guarded disposable PostgreSQL 17.9 harness: 14/14 tests passed with 0 skipped, including tenant A/B pipeline and detail isolation. Migrations 001/002, zero-duplicate preflight, migration 002 rollback/reapply, and cleanup of the disposable database/role were confirmed. Only `LOCAL_TEST_DATABASE_URL` through the verified loopback tunnel was used; no production database or credentials were persisted. A benign listener-shutdown WinError 10038 occurred after the tests passed; cleanup succeeded.
+- `npm.cmd run build --prefix dashboard` exited 0 with Next.js 14.2.35. The first builds exposed compile-time incompatibilities in generic PostgreSQL query adapter casts and the integration test query callback; narrow type-only corrections were applied in `pipelineQuery.ts`, `productDetail.ts`, and `tests/helpers/postgres-pipeline.integration.ts`, after which the exact build passed.
+- Dependencies were installed with `npm.cmd ci --prefix dashboard --include=dev`. npm reports 4 audit vulnerabilities (2 moderate, 1 high, 1 critical); no audit fix or major upgrade was attempted. The build-generated `dashboard/next-env.d.ts` was added to the final candidate.
+- `git diff --check` passed on final candidates; the cumulative apply-progress records the branch chain and authored line counts.
 
 ## Deployment and Git blockers
 
-- No Dokploy application deployment or configured-token HTTP success is claimed. The dedicated database and its Dokploy environment variable names were prepared, but no backup of pre-existing production ALFA data or stable application connectivity is claimed.
+- No Dokploy application deployment or configured-token HTTP success is claimed in PR 3. Deployment configuration remains PR 4 scope.
 - The dedicated database rehearsal is not a claim of deployed application readiness or a backup of pre-existing production ALFA data. PostgreSQL/PgBouncer are host-published and currently reachable only on the Compose bridge; stable private overlay connectivity remains unresolved.
 - The existing n8n database is shared/mixed and must not receive ALFA migrations. ALFA uses the separate `alfa_db` database on the same PostgreSQL instance; stable private overlay connectivity remains unresolved.
 - `docker-compose.yml` currently declares a public Traefik route for the orchestrator, while the OpenSpec deployment task requires removing that route. Do not deploy this snapshot as if that task were complete.
