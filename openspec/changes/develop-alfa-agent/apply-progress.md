@@ -606,3 +606,23 @@ Rollback boundary is limited to `docker-compose.yml`, `orchestrator/tests/deploy
 - A local full-branch recount against PR3B `2e2366f41b43792d81bfe24a54578441b9205fb0`, excluding generated lockfiles, reports **884 authored lines** (846 additions + 38 deletions). Earlier parent gate evidence recorded 768 before this correction; this current local count is retained as the latest direct measurement rather than silently reconciling the discrepancy.
 - After one honest slicing pass, the maintainer's standing `size:exception` pre-approval remains applied to the cumulative PR4 slice; no tests or docs were trimmed. Delivery remains `auto-chain` / `feature-branch-chain`.
 - No production readiness, private connectivity, live credentials/selectors, legacy n8n behavior, or platform reliability is claimed. Direct network attachment/DNS verification remains an operator prerequisite.
+
+## PR4 dashboard image build correction — missing public directory — 2026-09-28
+
+### Root cause and bounded fix
+
+- Parent-provided first Dokploy build failed at dashboard image packaging with BuildKit `failed to calculate checksum ... "/app/public": not found` after the other seven images built.
+- Local source verification confirmed `dashboard/public` does not exist while `dashboard/Dockerfile` copied `/app/public` from the build stage into runtime. The failing copy had no source directory to checksum; no runtime code or Compose topology was implicated.
+- Added a regression to `orchestrator/tests/deployment-smoke.contract.test.ts` that checks the real dashboard Dockerfile and requires it not to copy `/app/public` when `dashboard/public` is absent. Removed only the invalid `COPY --from=build /app/public ./public` instruction. `.next/standalone` and `.next/static` copies remain unchanged.
+
+### RED → GREEN evidence
+
+- **RED:** With the known temporary external Node `os.userInfo()` preload for `tsx`, `npm.cmd run test:contract --prefix orchestrator` exited 1: 42 passed, 1 failed, 0 skipped. The new assertion failed on the exact nonexistent public-assets COPY directive.
+- **GREEN:** After removing only that line, `npm.cmd run test:contract --prefix orchestrator` exited 0: 43 passed, 0 failed, 0 skipped. `npm.cmd run test:contract --prefix dashboard` exited 0: 14 total, 13 passed, 0 failed, 1 guarded PostgreSQL case skipped because no local disposable DB was configured. Output included Node's non-blocking `DEP0205` warning. The temporary preload was removed after test commands.
+
+### Verification and rollout boundary
+
+- Parent's Dokploy image build is recorded as failed on the original Dockerfile; this repo correction does not retroactively convert that attempt to a pass.
+- No local Docker build was available or attempted. Parent redeployment/rebuild is pending; do not claim dashboard image success or deployment readiness until the parent observes the corrected build.
+- No remote service state or file was changed by this correction. Task 5.1 and 5.3 remain marked complete for their repository/test acceptance; the deployment image rebuild remains an explicit parent follow-up rather than fabricated evidence.
+- Rollback boundary: restore the single removed Dockerfile COPY line and remove its regression assertion together; this is unsafe while `dashboard/public` remains absent.

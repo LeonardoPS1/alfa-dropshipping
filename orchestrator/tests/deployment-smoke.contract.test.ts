@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { test } from 'node:test';
 
 const root = resolve(__dirname, '../..');
 const compose = readFileSync(resolve(root, 'docker-compose.yml'), 'utf8');
 const envExample = readFileSync(resolve(root, '.env.example'), 'utf8');
+const dashboardDockerfile = readFileSync(resolve(root, 'dashboard/Dockerfile'), 'utf8');
 const smokeModule = (() => {
   try { return require('../scripts/smoke-discovery') as Record<string, any>; }
   catch { return {}; }
@@ -80,6 +81,12 @@ test('Dokploy Compose networks stay attachable and scoped to dependency or route
     assert.doesNotMatch(service(name), /dokploy-network|traefik\.http\.routers/, `${name} must remain unrouted`);
   }
   assert.doesNotMatch(service('alfa-orchestrator'), /ports:/);
+});
+
+test('dashboard runtime image does not copy a missing public assets directory', () => {
+  if (!existsSync(resolve(root, 'dashboard/public'))) {
+    assert.doesNotMatch(dashboardDockerfile, /COPY\s+--from=build\s+\/app\/public\b/);
+  }
 });
 
 test('product service rejects missing startup credential configuration', () => {
