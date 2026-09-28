@@ -477,3 +477,38 @@ This is a read-merged continuation of the complete PR1–PR3 apply history above
 - One honest cohesion pass kept 5.1–5.5 together: compose credentials/networking, the matching controlled path contract, verification, and its rollout/rollback boundaries are one deployable trust-boundary unit. Splitting smoke from the required protected-path wiring would leave either child without an autonomous end-to-end acceptance boundary.
 - Exact authored additions plus deletions against PR3B, excluding generated lockfiles: **552 (532 additions + 20 deletions)**. Applied the maintainer's standing pre-approval for `size:exception` after this one slicing pass; no code, tests, or documentation were trimmed.
 - Implementation work-unit commit: `5c2108d04312463836ef17e830d52b318a84d086` (`feat(discovery): secure deployment and add controlled smoke`); not pushed.
+
+## PR4 corrective smoke recovery — disposable-tenant isolation — 2026-09-28
+
+This is a narrow corrective work unit on the same PR4 branch. The parent ran the controlled smoke through an authorized local tunnel against a new disposable PostgreSQL 17.9 database/role after applying migrations 001/002 and verifying duplicate preflight, migration rollback/reapply; the database and role were cleaned after the smoke failed. No production database was touched. The report was `failedArea=chat_to_product_to_pipeline`, `errorCode=ERR_ASSERTION`; the prior catch intentionally hid the raw assertion text.
+
+### Diagnosis and behavior contract
+
+- Verified schema/data-flow root cause: `products`, `evaluations`, and `agent_logs` rows reference `tenants(id)`. The smoke generated a random `tenantId` from its run ID but never inserted that tenant before discovery. Product discovery therefore violated the tenant foreign key; the product endpoint returned failure, and the expected HTTP 200 assertion surfaced only as generic `ERR_ASSERTION`. The smoke preflight also did not check that the `tenants` table existed.
+- The suggested partial-scoring hypothesis was checked and is not the cause. `scoreProduct` intentionally stores `total_score: null` for unavailable evidence, but this successful evaluation result does not carry `status: 'partial'`; the orchestration route correctly continues to the final provider turn. A separate contract now proves incomplete evidence may be reported honestly while retaining the final response. The existing explicit `status: 'partial'` contract still proves partial tool outcomes stop immediately.
+- The smoke now seeds only its generated tenant in the explicitly validated disposable database before starting the product/orchestrator journey, verifies the returned ID, and refuses databases missing the tenant table. It continues to assert the persisted evaluation is `incomplete`, the total score is null, observed catalog price is retained, request-linked audit rows exist, and forbidden transport count is zero. It does not invent evidence or weaken orchestration failure handling.
+- Smoke failure phases are now narrowed (`smoke_tenant_seed`, `chat_http_outcome`, `forbidden_transport_guard`, `dashboard_pipeline_read`, `audit_linkage`) without emitting assertion payloads, secrets, or database errors.
+
+### RED → GREEN evidence
+
+- **RED:** Added `orchestrator/tests/smoke-discovery.contract.test.ts` first; its 2 tests failed because `seedSmokeTenant` did not exist. This proved the missing tenant-seed behavior before implementation.
+- **GREEN:** The exact focused smoke helper contract passed 2/2 after adding the exported seed helper and validating the returned tenant UUID.
+- Added an orchestration contract for the independently verified incomplete-score path: successful search + evaluation with `total_score: null` can still receive the final provider response; audit outcomes remain success/success. Existing explicit partial failure test still passes.
+
+### Verification for the corrective commit
+
+| Check | Command / observed outcome |
+|---|---|
+| Orchestrator contracts | `npm.cmd run test:contract --prefix orchestrator` — exit 0; 40 passed, 0 failed, 0 skipped (includes new incomplete-evaluation and smoke-tenant contracts). |
+| Product contracts | `npm.cmd run test:contract --prefix subagent-producto` — exit 0; 15 total, 14 passed, 0 failed, 1 local PostgreSQL case skipped (no local disposable URL). |
+| Dashboard contracts | `npm.cmd run test:contract --prefix dashboard` — exit 0; 14 total, 13 passed, 0 failed, 1 local PostgreSQL case skipped (no local disposable URL). |
+| Builds/typecheck | Orchestrator build and product build passed; dashboard direct `tsc --project dashboard/tsconfig.json --noEmit --incremental false` and dashboard Next.js 14.2.35 build passed. Smoke script/test direct strict TypeScript check passed. |
+| Fail-closed smoke configuration | `npm.cmd run smoke:discovery --prefix orchestrator` with `ALFA_SMOKE_DATABASE_URL` removed exited 1 before connecting; JSON reported `ALFA_SMOKE_DATABASE_URL_REQUIRED` and skipped live integrations. This does not count as an end-to-end acceptance pass. |
+| Diff hygiene | `git diff --check` passed. |
+| Runtime caveat | Node 26.8.2 `tsx` required a temporary external `node:os.userInfo()` preload due `uv_os_get_passwd returned ENOMEM`; preload removed. Product/dashboard guarded PostgreSQL cases remained skipped locally. |
+
+### Remaining acceptance and boundary
+
+- Parent's prior disposable smoke attempt is recorded as a failed acceptance attempt, not a pass. `5.3` remains unchecked; cumulative SDD progress remains **26/27** until parent reruns `npm.cmd run smoke:discovery --prefix orchestrator` with an explicit authorized loopback tunnel URL for a migrated disposable database and receives `status: passed` with all assertions green.
+- No SSH, Dokploy/UI/API change, push, production database, live Dropi/LLM/n8n call, Compose/env change, or deployment was done during this corrective work unit. The temporary tunnel listener's later WinError 10038 was cleanup noise after the failed run, not a product failure.
+- New corrective paths: `orchestrator/scripts/smoke-discovery.ts`; `orchestrator/tests/smoke-discovery.contract.test.ts`; `orchestrator/tests/orchestration.contract.test.ts`.

@@ -103,6 +103,39 @@ test('chat loop binds trusted tool context, retains linked transcript, and retur
   assert.equal(JSON.stringify(nextMessages).includes(token), false);
 });
 
+test('chat may complete after a successful evaluation that honestly has no total score', async () => {
+  const url = await startServer();
+  const calls = [
+    wireCall('search_dropi_catalog', { query: 'lamp' }, 'search-call'),
+    wireCall('score_product', { product_id: productId }, 'score-call'),
+  ];
+  const dispatched: string[] = [];
+  provider = async () => {
+    providerCalls += 1;
+    return providerCalls <= calls.length
+      ? providerResult([calls[providerCalls - 1]])
+      : providerResult([], 'The product was discovered; evaluation is incomplete because evidence is unavailable.');
+  };
+  invokeTool = async (_subagent, name) => {
+    dispatched.push(name);
+    return name === 'search_dropi_catalog'
+      ? { products: [{ id: productId }] }
+      : {
+        product_id: productId,
+        total_score: null,
+        breakdown: { demand_score: null, competition_score: null, margin_score: null, shipping_score: null },
+        justification: 'Evaluation is incomplete because one or more required inputs are unavailable or unsupported.',
+      };
+  };
+
+  const response = await post(url);
+  assert.equal(response.status, 200);
+  assert.match((await response.json() as any).reply, /evaluation is incomplete/i);
+  assert.equal(providerCalls, 3);
+  assert.deepEqual(dispatched, ['search_dropi_catalog', 'score_product']);
+  assert.deepEqual(auditEvents.map((event) => event.metadata.outcome), ['success', 'success']);
+});
+
 test('malformed or forbidden provider batches fail atomically without a tool call or next provider turn', async (t) => {
   const cases = [
     { label: 'forbidden capability', calls: [wireCall('publish_product', {})] },

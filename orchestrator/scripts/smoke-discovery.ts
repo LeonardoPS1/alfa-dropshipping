@@ -19,6 +19,14 @@ export interface SmokeDatabaseConfig {
   databaseName: string;
 }
 
+export async function seedSmokeTenant(query: Query, tenantId: string, runId: string): Promise<void> {
+  const result = await query<{ id: string }>(
+    'INSERT INTO tenants (id, name) VALUES ($1, $2) RETURNING id',
+    [tenantId, `controlled-smoke-${runId}`],
+  );
+  if (result.rows[0]?.id !== tenantId) throw new Error('Smoke tenant seed did not return the requested tenant');
+}
+
 export function loadSmokeDatabaseConfig(env: Record<string, string | undefined> = process.env): SmokeDatabaseConfig {
   const connectionString = env.ALFA_SMOKE_DATABASE_URL?.trim();
   if (!connectionString) {
@@ -97,13 +105,17 @@ export async function runDiscoverySmoke(env: Record<string, string | undefined> 
   try {
     const identity = await database.query<{ database_name: string }>('SELECT current_database() AS database_name');
     assert.equal(identity.rows[0]?.database_name, databaseConfig.databaseName, 'connected database differs from explicit smoke target');
-    const requiredTables = await database.query<{ products: string | null; evaluations: string | null; agent_logs: string | null }>(
-      `SELECT to_regclass('public.products')::text AS products,
+    const requiredTables = await database.query<{ tenants: string | null; products: string | null; evaluations: string | null; agent_logs: string | null }>(
+      `SELECT to_regclass('public.tenants')::text AS tenants,
+              to_regclass('public.products')::text AS products,
               to_regclass('public.evaluations')::text AS evaluations,
               to_regclass('public.agent_logs')::text AS agent_logs`,
     );
-    assert.ok(requiredTables.rows[0]?.products && requiredTables.rows[0]?.evaluations && requiredTables.rows[0]?.agent_logs,
-      'discovery smoke requires migrations and the agent_logs table to be present');
+    assert.ok(requiredTables.rows[0]?.tenants && requiredTables.rows[0]?.products && requiredTables.rows[0]?.evaluations && requiredTables.rows[0]?.agent_logs,
+      'discovery smoke requires tenant, discovery, evaluation, and audit tables to be present');
+
+    phase = 'smoke_tenant_seed';
+    await seedSmokeTenant(query, tenantId, runId);
 
     phase = 'product_fixture_server';
     const fixture = {
@@ -187,6 +199,7 @@ export async function runDiscoverySmoke(env: Record<string, string | undefined> 
       orchestratorServer!.once('error', reject);
     });
     const orchestratorAddress = orchestratorServer.address() as AddressInfo;
+    phase = 'chat_http_outcome';
     const response = await fetch(`http://127.0.0.1:${orchestratorAddress.port}/chat`, {
       method: 'POST',
       headers: {
@@ -199,16 +212,20 @@ export async function runDiscoverySmoke(env: Record<string, string | undefined> 
     });
     assert.equal(response.status, 200, 'orchestrator did not complete the controlled chat journey');
     assert.equal((await response.json() as { reply?: string }).reply, 'Deterministic discovery smoke completed.');
+    phase = 'forbidden_transport_guard';
     assert.equal(forbiddenTransportCalls, 0, 'a forbidden transport was invoked');
     assert.equal(providerTurn, 3, 'expected two allowlisted tool calls and a final response');
 
+    phase = 'dashboard_pipeline_read';
     const pipeline = await queryPipeline(tenantId, query);
     assert.equal(pipeline.length, 1, 'pipeline did not return exactly the fixture product for this isolated tenant');
     assert.equal(pipeline[0].id, productId);
     assert.ok(pipeline[0].evaluation_id, 'score_product did not persist an evaluation');
     assert.equal(pipeline[0].evaluation_status, 'incomplete');
+    assert.equal(pipeline[0].evaluation_score, null, 'incomplete evidence must not produce a fabricated total score');
     assert.equal((pipeline[0].catalog_price_evidence as { status?: string } | null)?.status, 'observed');
 
+    phase = 'audit_linkage';
     const audit = await database.query<{ request_id: string }>(
       `SELECT metadata ->> 'request_id' AS request_id
        FROM agent_logs WHERE tenant_id = $1 AND metadata ->> 'request_id' = $2`,
@@ -221,7 +238,16 @@ export async function runDiscoverySmoke(env: Record<string, string | undefined> 
       runId,
       status: 'passed',
       journey: 'chat -> product discovery -> evaluation -> dashboard pipeline query',
-      results: { providerTurns: providerTurn, toolCalls: 2, products: pipeline.length, evaluations: 1, auditRows: audit.rows.length, forbiddenTransportCalls },
+      results: {
+        providerTurns: providerTurn,
+        toolCalls: 2,
+        products: pipeline.length,
+        evaluations: 1,
+        evaluationStatus: pipeline[0].evaluation_status,
+        evaluationScore: pipeline[0].evaluation_score,
+        auditRows: audit.rows.length,
+        forbiddenTransportCalls,
+      },
       skippedLiveIntegrations: ['Dropi live catalog', 'LLM provider', 'Shopify', 'Ads', 'social publishing', 'n8n mutations'],
     };
   } catch (error) {
