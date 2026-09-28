@@ -512,3 +512,30 @@ This is a narrow corrective work unit on the same PR4 branch. The parent ran the
 - Parent's prior disposable smoke attempt is recorded as a failed acceptance attempt, not a pass. `5.3` remains unchecked; cumulative SDD progress remains **26/27** until parent reruns `npm.cmd run smoke:discovery --prefix orchestrator` with an explicit authorized loopback tunnel URL for a migrated disposable database and receives `status: passed` with all assertions green.
 - No SSH, Dokploy/UI/API change, push, production database, live Dropi/LLM/n8n call, Compose/env change, or deployment was done during this corrective work unit. The temporary tunnel listener's later WinError 10038 was cleanup noise after the failed run, not a product failure.
 - New corrective paths: `orchestrator/scripts/smoke-discovery.ts`; `orchestrator/tests/smoke-discovery.contract.test.ts`; `orchestrator/tests/orchestration.contract.test.ts`.
+
+## PR4 acceptance reconciliation — disposable smoke and Compose parse — 2026-09-28
+
+This entry supersedes the earlier pending-acceptance snapshot above without erasing the first failed smoke, its foreign-key root cause, or the corrective commit evidence. The parent reran acceptance after `9c3057e8299ff61af4528bd4b8d4a4c9fae63c14` using a newly created disposable PostgreSQL 17.9 database/role through a verified SSH tunnel. Migration 001 applied; duplicate preflight returned zero; migration 002 apply, rollback, and reapply passed.
+
+### Successful controlled smoke
+
+- Exact command: `npm.cmd run smoke:discovery --prefix orchestrator` with explicit disposable `ALFA_SMOKE_DATABASE_URL`; exit 0.
+- Output: deterministic provider/catalog fixtures; run ID `7167db4e-a332-4f55-9d4f-6841cca86edb`; `status: passed`; journey `chat -> product discovery -> evaluation -> dashboard pipeline query`; 3 provider turns; 2 allowlisted tool calls; 1 product; 1 evaluation; evaluation status `incomplete`; total score `null`; 2 request-linked audit rows; 0 forbidden transport calls.
+- Live Dropi, LLM provider, Shopify, Ads, social publishing, and n8n mutations were skipped and remain unverified. The disposable database/role were removed after the run. A later Python listener WinError 10038 occurred only during tunnel shutdown; smoke and cleanup had already succeeded.
+
+### Compose syntax evidence
+
+- Parent uploaded only `docker-compose.yml` to a random temporary file on the VPS, supplied fictitious values for required interpolations, ran `docker compose config -q`, observed exit 0, then removed the file. No services were started or changed; no deployment occurred.
+- Parse warnings: non-required variables were unset and defaulted blank in this isolated invocation; top-level Compose `version` is obsolete. This proves syntax parsing only, not that actual deployment values are present or valid.
+
+### Task and scope reconciliation
+
+- `5.3` is now complete because local focused contracts/builds/typechecks passed and the required disposable PostgreSQL smoke passed after the correction. Cumulative state is **27/27 complete**.
+- Earlier failure remains part of the audit trail: random smoke tenant was not inserted into `tenants`, violating product/audit foreign keys; corrective commit `9c3057e` seeds and verifies the run tenant. The initial failed run is not represented as a pass.
+- No production backup/schema check, Dokploy/UI/API mutation, service rollout, private connectivity claim, live credential/selector verification, legacy deployed n8n check, or platform reliability proof is asserted. Rollout order and rollback boundaries remain unchanged.
+
+### Evidence pointers
+
+- Controlled smoke and tenant seed: `orchestrator/scripts/smoke-discovery.ts`.
+- Corrective commit: `9c3057e8299ff61af4528bd4b8d4a4c9fae63c14`; 130 authored changed lines (125 additions, 5 deletions) in the corrective code/test/progress work unit.
+- Repository runbook: `docs/discovery-rollout.md` records successful disposable smoke and parse-only Compose validation while keeping deployment claims explicitly unverified.
