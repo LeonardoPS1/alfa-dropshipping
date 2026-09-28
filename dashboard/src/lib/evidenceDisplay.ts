@@ -27,3 +27,10 @@ export function describeEvidence(evidence: Evidence | null | undefined): Evidenc
     provenance: [evidence.source, evidence.source_id].filter(Boolean).join(' · ') || 'Source not recorded',
   };
 }
+
+export function selectCatalogPriceEvidence(
+  evaluationEvidence: Evidence | null | undefined,
+  discoveryEvidence: Evidence | null | undefined
+): Evidence | null {
+  return evaluationEvidence ?? discoveryEvidence ?? null;
+}

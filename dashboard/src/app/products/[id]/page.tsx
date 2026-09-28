@@ -1,73 +1,69 @@
-import { pool } from '@/lib/db';
+import { getServerSession } from 'next-auth';
+import { authOptions, resolveTenantId } from '@/lib/auth';
+import { queryProductDetail } from '@/lib/productDetail';
+import { describeEvidence, selectCatalogPriceEvidence } from '@/lib/evidenceDisplay';
 
-// Página de datos en vivo — nunca prerenderizar estáticamente en build time.
 export const dynamic = 'force-dynamic';
 
-async function getProductDetail(id: string) {
-  const productRes = await pool.query(`SELECT * FROM products WHERE id = $1`, [id]);
-  const evaluationsRes = await pool.query(
-    `SELECT * FROM evaluations WHERE product_id = $1 ORDER BY created_at DESC`,
-    [id]
-  );
-  const creativesRes = await pool.query(
-    `SELECT * FROM creatives WHERE product_id = $1 ORDER BY created_at DESC`,
-    [id]
-  );
-  const saturationRes = await pool.query(
-    `SELECT * FROM saturation_checks WHERE product_id = $1 ORDER BY checked_at DESC LIMIT 1`,
-    [id]
-  );
-  const complianceRes = await pool.query(
-    `SELECT * FROM compliance_flags WHERE product_id = $1 ORDER BY checked_at DESC LIMIT 1`,
-    [id]
-  );
-  const campaignRes = await pool.query(
-    `SELECT * FROM campaigns WHERE product_id = $1 ORDER BY created_at DESC LIMIT 1`,
-    [id]
-  );
-
-  return {
-    product: productRes.rows[0],
-    evaluations: evaluationsRes.rows,
-    creatives: creativesRes.rows,
-    saturation: saturationRes.rows[0] ?? null,
-    compliance: complianceRes.rows[0] ?? null,
-    campaign: campaignRes.rows[0] ?? null,
-  };
-}
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function ProductDetailPage({ params }: { params: { id: string } }) {
-  const data = await getProductDetail(params.id);
+  const session = await getServerSession(authOptions);
+  if (!session || !UUID_PATTERN.test(params.id)) return <p>Producto no encontrado.</p>;
+
+  let data: Awaited<ReturnType<typeof queryProductDetail>>;
+  try {
+    data = await queryProductDetail(params.id, resolveTenantId(session));
+  } catch {
+    return <p>No se pudo cargar el producto.</p>;
+  }
   if (!data.product) return <p>Producto no encontrado.</p>;
+
+  const product = data.product;
+  const discoveryEvidence = (product.raw_data as { discovery_evidence?: { catalog_price?: Parameters<typeof describeEvidence>[0] } } | null)?.discovery_evidence?.catalog_price;
 
   return (
     <div>
-      <h1>{data.product.name}</h1>
-      <p>Categoría: {data.product.category ?? '—'} · Fuente: {data.product.source}</p>
+      <h1>{String(product.name)}</h1>
+      <p>Categoría: {String(product.category ?? '—')} · Fuente: {String(product.source ?? '—')} · ID de origen: {String(product.external_id ?? 'Unavailable')}</p>
+      <p>Estado de publicación persistido: {String(product.shopify_status ?? 'Unknown')}</p>
 
-      <h2>Evaluaciones</h2>
-      {data.evaluations.map((e) => (
-        <div key={e.id} style={{ marginBottom: 8, padding: 8, border: '1px solid #222', borderRadius: 6 }}>
-          <strong>Score total: {Number(e.total_score).toFixed(1)}</strong>
-          <p style={{ opacity: 0.8 }}>{e.justification}</p>
-        </div>
-      ))}
+      <h2>Estado de evaluación</h2>
+      {data.evaluations.length === 0 ? (() => {
+        const price = describeEvidence(selectCatalogPriceEvidence(null, discoveryEvidence));
+        return <p>Descubierto; todavía no evaluado. Catalog price: {price.label} · {price.status} · {price.provenance}</p>;
+      })() : data.evaluations.map((evaluation) => {
+        const evidence = selectCatalogPriceEvidence(
+          (evaluation.evidence as { catalog_price?: Parameters<typeof describeEvidence>[0] } | null)?.catalog_price,
+          discoveryEvidence
+        );
+        const price = describeEvidence(evidence);
+        const score = evaluation.total_score == null ? 'Incomplete' : Number(evaluation.total_score).toFixed(1);
+        return (
+          <section key={String(evaluation.id)} style={{ marginBottom: 8, padding: 8, border: '1px solid #222', borderRadius: 6 }}>
+            <strong>{score === 'Incomplete' ? 'Evaluación incompleta' : `Evaluated · Score total: ${score}`}</strong>
+            <p>Evaluation ID: {String(evaluation.id)} · Status: {score === 'Incomplete' ? 'incomplete' : 'evaluated'}</p>
+            <p>Catalog price: {price.label} · {price.status} · {price.provenance}</p>
+            <p style={{ opacity: 0.8 }}>{String(evaluation.justification ?? 'No evaluation notes recorded.')}</p>
+          </section>
+        );
+      })}
 
       <h2>Estado de saturación / compliance</h2>
       <p>
         Saturación: {data.saturation ? (data.saturation.is_saturated ? 'Saturado' : 'OK') : 'Sin chequear'} ·
-        Compliance: {data.compliance ? (data.compliance.is_compliant ? 'OK' : data.compliance.restricted_reason) : 'Sin chequear'}
+        Compliance: {data.compliance ? (data.compliance.is_compliant ? 'OK' : String(data.compliance.restricted_reason ?? 'Restricted')) : 'Sin chequear'}
       </p>
 
       <h2>Creativos generados</h2>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-        {data.creatives.map((c) => (
-          <div key={c.id} style={{ width: 220, border: '1px solid #222', borderRadius: 6, padding: 8 }}>
-            <span style={{ fontSize: 11, opacity: 0.6 }}>{c.type}</span>
-            {c.type === 'image' ? (
-              <img src={c.content} alt="" style={{ width: '100%', borderRadius: 4, marginTop: 4 }} />
+        {data.creatives.map((creative) => (
+          <div key={String(creative.id)} style={{ width: 220, border: '1px solid #222', borderRadius: 6, padding: 8 }}>
+            <span style={{ fontSize: 11, opacity: 0.6 }}>{String(creative.type)}</span>
+            {creative.type === 'image' ? (
+              <img src={String(creative.content ?? '')} alt="" style={{ width: '100%', borderRadius: 4, marginTop: 4 }} />
             ) : (
-              <p style={{ fontSize: 13 }}>{c.content}</p>
+              <p style={{ fontSize: 13 }}>{String(creative.content ?? '')}</p>
             )}
           </div>
         ))}
@@ -75,10 +71,9 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
 
       {data.campaign && (
         <>
-          <h2>Campaña</h2>
+          <h2>Campaña persistida</h2>
           <p>
-            {data.campaign.platform} · Estado: {data.campaign.status} · ROAS: {data.campaign.roas ?? '—'} · Spend: $
-            {data.campaign.spend}
+            {String(data.campaign.platform ?? 'Unknown')} · Estado: {String(data.campaign.status ?? 'Unknown')} · ROAS: {String(data.campaign.roas ?? '—')} · Spend: ${String(data.campaign.spend ?? '—')}
           </p>
         </>
       )}

@@ -1,3 +1,6 @@
+import { selectCatalogPriceEvidence } from './evidenceDisplay';
+import type { Evidence } from './evidenceDisplay';
+
 export interface QueryResult<Row> {
   rows: Row[];
 }
@@ -88,7 +91,10 @@ export async function queryPipeline(tenantId: string, query: Query = defaultQuer
 
   return rows.map((row) => ({
     ...row,
-    catalog_price_evidence: row.evaluation_evidence?.catalog_price ?? row.discovery_evidence ?? null,
+    catalog_price_evidence: selectCatalogPriceEvidence(
+      row.evaluation_evidence?.catalog_price as Evidence | undefined,
+      row.discovery_evidence as Evidence | undefined
+    ),
   }));
 }
 

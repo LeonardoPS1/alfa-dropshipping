@@ -133,6 +133,15 @@ test('evidence display retains status and provenance and renders unavailable wit
   });
 });
 
+test('detail evidence prefers persisted evaluation provenance and falls back to discovery evidence', () => {
+  assert.equal(typeof evidenceDisplay.selectCatalogPriceEvidence, 'function');
+  const evaluated = { status: 'observed', value: 18, source: 'evaluation-source' };
+  const discovered = { status: 'estimated', value: 20, source: 'discovery-source' };
+  assert.equal(evidenceDisplay.selectCatalogPriceEvidence?.(evaluated, discovered), evaluated);
+  assert.equal(evidenceDisplay.selectCatalogPriceEvidence?.(null, discovered), discovered);
+  assert.equal(evidenceDisplay.selectCatalogPriceEvidence?.(null, null), null);
+});
+
 test('chat proxy requires session, ignores browser tenant authority, and preserves partial orchestrator outcomes', async () => {
   assert.equal(typeof chatRoute.proxyChatRequest, 'function');
   const calls: unknown[][] = [];

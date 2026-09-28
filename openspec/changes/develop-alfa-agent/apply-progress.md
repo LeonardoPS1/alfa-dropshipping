@@ -289,3 +289,58 @@ The automatic-mode gate identified three concrete defects and one stale artifact
 - Final cumulative PR2D authored additions plus deletions against PR2C `104b8e9`: **565 lines (531 additions + 34 deletions)**. No generated lockfile is included. The maintainer-approved `size:exception` remains in effect after the initial slicing pass.
 - Rollback: revert the corrective commit to restore the prior PR2D candidate; reverting the PR2D work-unit commit as well returns to PR2C without disturbing PR2A–C or PR1.
 - No push, pull request, PR3 work, private-network configuration, or deployment was performed.
+
+## PR 3 — dashboard trust boundary and tenant-scoped pipeline — 2026-09-28
+
+This is a read-merged continuation of the complete PR1/PR2 apply history above. The selected store is hybrid with OpenSpec file locators; this file and `tasks.md` are updated in the change, and the Engram mirror uses `sdd/develop-alfa-agent/apply-progress`. No prior section or historical evidence was replaced.
+
+### Cumulative task state
+
+- [x] PR1 and PR2 tasks: 15 tasks total.
+- [x] PR3 tasks completed from observed implementation/contracts: 1.4, 1.8, 4.1, 4.2, and 4.3.
+- [ ] PR3 tasks not yet proven complete: 4.4 and 4.5. The UI/detail source changes exist, but the required Next build could not start; the PostgreSQL runtime integration was skipped because no explicit local test URL is configured.
+- [ ] PR4 tasks: 5.1–5.5 remain out of scope.
+- Cumulative state: 20/27 complete; 7 tasks pending.
+
+### PR3A backend/contracts boundary
+
+- Base: PR2D final `1d988f7` on `feat/alfa-agent-pr3-dashboard`.
+- Commit: `7ad957a` — `feat(dashboard): add tenant-bound chat and pipeline reads`.
+- PR3A implements the dashboard-local `tsx --test` contract setup, centralized authenticated server tenant resolution, session-bound chat proxy with generated request ID and internal credential, schema-compatible tenant-scoped pipeline query, non-2xx read failures, evidence selection, detail query helper, and contract/guarded PostgreSQL tests.
+- PR3A authored additions plus deletions: **691 lines**, excluding generated `dashboard/package-lock.json`. This is over the 400-line review budget after the one permitted backend/contracts-versus-UI split; no further slicing/code-golf was performed. Recommend `size:exception` for PR3A.
+
+### PR3B UI/final-integration boundary
+
+- Child branch: `feat/alfa-agent-pr3-dashboard-ui`, based directly on PR3A `7ad957a`; it contains the final dashboard board/card/detail integration and cumulative task/status documentation.
+- No push, PR creation, external service access, deployment, Docker/Dokploy change, or production database access was performed.
+- The UI displays source/source ID, evaluation ID/status, catalog-price status/provenance or unavailable, an explicit discovered/incomplete state, and persisted publication state only. The detail page and related-record helper constrain every read by trusted tenant. UI completion remains pending until a dashboard build can compile the final candidate.
+
+### RED → GREEN and verification evidence
+
+The documented project mode is Standard (`strict_tdd: false` in `openspec/config.yaml`); this does not claim project-wide Strict TDD. New behavior was test-first. The first contract attempt before adding production helpers failed during module loading because the expected `tenantContext` implementation did not exist yet; it did not reach test discovery. A focused later RED was observed for the new evidence-selection contract: `npm.cmd run test:contract --prefix dashboard` exited 1 with 14 tests, 12 passed, 1 assertion failed because `selectCatalogPriceEvidence` was missing, and 1 PostgreSQL case skipped. The implementation was then added and the final contract suite passed.
+
+| Check | Command / observed outcome |
+|---|---|
+| Dashboard contracts (final) | `npm.cmd run test:contract --prefix dashboard` — exit 0; 14 tests, 13 passed, 0 failed, 1 local PostgreSQL scenario skipped. A test caught and fixed a pipeline status-column key mismatch before the final pass. |
+| Build | `npm.cmd run build --prefix dashboard` — exit 1 before compilation because `next` is not installed (`"next" no se reconoce como un comando interno o externo`). |
+| Dependency installation | `npm.cmd install --prefix dashboard --ignore-scripts` could not fetch `tsx` from `registry.npmjs.org` in the network-restricted environment (EACCES); the first offline lock-only attempt reported uncached package metadata. After adding the already-resolved `tsx` 4.19.2 dependency graph from the sibling package lock, `npm.cmd install --package-lock-only --offline --ignore-scripts --prefix dashboard` completed successfully (92 packages audited, 0 vulnerabilities). No registry access succeeded and dependencies were not installed. |
+| Test runner workaround | Dashboard dependencies were absent. The successful contract run used the existing `subagent-producto/node_modules/.bin/tsx` via `PATH`, plus a temporary `$TEMP` preload overriding `node:os.userInfo()` because Node 26.8.2 otherwise failed in `tsx` with `uv_os_get_passwd returned ENOMEM`. Temporary preload/environment state was removed; neither workaround is committed. |
+| Disposable PostgreSQL | Guarded A/B tenant-isolation scenario is present and uses only explicit `LOCAL_TEST_DATABASE_URL`, rejects non-loopback URLs before connecting, and never falls back to `DATABASE_URL`. It was skipped because the explicit local URL was unset. No production database was contacted. |
+| Whitespace | `git diff --check` / staged `git diff --cached --check` passed for the checked PR3 candidates. |
+| CodeGraph | `.codegraph/` was absent; the prescribed `gentle-ai codegraph init --cwd ...` attempt failed because the `codegraph` executable is unavailable. Normal file exploration followed only after this initialization attempt failed. |
+
+### Work-unit evidence and rollback boundary
+
+| Evidence | Result |
+|---|---|
+| Focused test | Dashboard contracts: 14 total, 13 passed, 0 failed, 1 PostgreSQL-only skip. |
+| Runtime harness | A/B PostgreSQL pipeline/detail scenario added with explicit loopback test-only URL guard; runtime result is skipped/blocked due to no `LOCAL_TEST_DATABASE_URL`, not passed. |
+| Build | Blocked before compilation because dashboard package dependencies/Next.js are absent and registry install was denied by the environment. |
+| Rollback | Revert PR3B UI/detail integration (`dashboard/src/app/products/[id]/page.tsx`, `dashboard/src/components/PipelineBoard.tsx`, `dashboard/src/components/ProductCard.tsx`) with the PR3B evidence/task/status update. Revert PR3A commit `7ad957a` to remove the chat/pipeline routes, tenant/query helpers, dashboard contract harness, and package test setup together; this leaves PR2D `1d988f7` intact. Preserve additive migration 002 and its evidence during compatibility; do not delete product/evaluation rows. |
+
+### Remaining work and risk
+
+- Re-run `npm.cmd install` only when authorized registry access/package cache is available, then run the exact dashboard contract command and build. Do not treat the current build failure as a code compile result.
+- Run the guarded A/B integration only after an explicit local disposable `LOCAL_TEST_DATABASE_URL` is provided and confirmed loopback/test-only.
+- Complete task 4.4 only after UI compilation/behavior is verified; complete 4.5 only after contract/build checks and the database runtime case have the evidence required by the task.
+- PR3B authored additions plus deletions: **237 lines**, excluding generated `dashboard/package-lock.json`; this is the measured 236-line final-candidate diff plus this evidence line and remains within 400.

@@ -1,9 +1,17 @@
 'use client';
 
+import { describeEvidence } from '@/lib/evidenceDisplay';
+import type { Evidence } from '@/lib/evidenceDisplay';
+
 interface ProductCardProps {
   product: {
     id: string;
     name: string;
+    source?: string;
+    source_id?: string | null;
+    evaluation_id?: string | null;
+    evaluation_status?: 'discovered' | 'incomplete' | 'evaluated';
+    catalog_price_evidence?: Evidence | null;
     thumbnail?: string | null;
     evaluation_score?: number | null;
     is_flagged_saturated?: boolean;
@@ -13,6 +21,7 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const price = describeEvidence(product.catalog_price_evidence);
   return (
     <a
       href={`/products/${product.id}`}
@@ -35,6 +44,15 @@ export function ProductCard({ product }: ProductCardProps) {
         />
       )}
       <div style={{ fontWeight: 600, fontSize: 14 }}>{product.name}</div>
+      <div style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>
+        {product.source ?? 'Unknown source'} · Source ID: {product.source_id ?? 'Unavailable'}
+      </div>
+      <div style={{ fontSize: 12, marginTop: 6 }}>
+        Catalog price: {price.label} · {price.status} · {price.provenance}
+      </div>
+      <div style={{ fontSize: 11, marginTop: 4 }}>
+        {product.evaluation_status === 'evaluated' ? `Evaluated (${product.evaluation_id})` : product.evaluation_status === 'incomplete' ? `Discovered · evaluation incomplete (${product.evaluation_id})` : 'Discovered · not evaluated'}
+      </div>
       <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
         {product.evaluation_score != null && (
           <span style={badgeStyle('#1d4ed8')}>Score {Number(product.evaluation_score).toFixed(0)}</span>
