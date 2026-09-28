@@ -13,6 +13,7 @@ export class OrchestratorConfigurationError extends Error {
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const PLACEHOLDER_CREDENTIAL_PATTERN = /^REPLACE_WITH_/i;
 
 export function loadOrchestratorConfig(env: Record<string, string | undefined> = process.env): OrchestratorConfig {
   const internalToken = env.ORCHESTRATOR_INTERNAL_TOKEN?.trim() ?? '';
@@ -21,9 +22,15 @@ export function loadOrchestratorConfig(env: Record<string, string | undefined> =
   const productUrl = env.MCP_PRODUCTO_URL?.trim() ?? '';
 
   if (!internalToken) throw new OrchestratorConfigurationError('ORCHESTRATOR_INTERNAL_TOKEN is required');
+  if (PLACEHOLDER_CREDENTIAL_PATTERN.test(internalToken)) {
+    throw new OrchestratorConfigurationError('ORCHESTRATOR_INTERNAL_TOKEN must not be an example placeholder');
+  }
   if (!UUID_PATTERN.test(tenantId)) throw new OrchestratorConfigurationError('ORCHESTRATOR_TENANT_ID must be a UUID');
   if (!productToken || productToken === internalToken) {
     throw new OrchestratorConfigurationError('ORCHESTRATOR_PRODUCT_TOKEN must be distinct and nonempty');
+  }
+  if (PLACEHOLDER_CREDENTIAL_PATTERN.test(productToken)) {
+    throw new OrchestratorConfigurationError('ORCHESTRATOR_PRODUCT_TOKEN must not be an example placeholder');
   }
 
   let parsedUrl: URL;

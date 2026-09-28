@@ -13,6 +13,27 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 export interface ProductServerDependencies {
   discoveryToken?: string;
   searchDropiCatalog?: typeof searchDropiCatalog;
+  scoreProduct?: typeof scoreProduct;
+}
+
+export interface ProductServiceConfig {
+  discoveryToken: string;
+}
+
+export class ProductServiceConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ProductServiceConfigurationError';
+  }
+}
+
+export function loadProductServiceConfig(env: Record<string, string | undefined> = process.env): ProductServiceConfig {
+  const discoveryToken = env.ORCHESTRATOR_PRODUCT_TOKEN?.trim() ?? '';
+  if (!discoveryToken) throw new ProductServiceConfigurationError('ORCHESTRATOR_PRODUCT_TOKEN is required');
+  if (/^REPLACE_WITH_/i.test(discoveryToken)) {
+    throw new ProductServiceConfigurationError('ORCHESTRATOR_PRODUCT_TOKEN must not be an example placeholder');
+  }
+  return { discoveryToken };
 }
 
 export function createProductApp(dependencies: ProductServerDependencies = {}) {
@@ -20,6 +41,7 @@ export function createProductApp(dependencies: ProductServerDependencies = {}) {
   app.use(express.json({ limit: '2mb' }));
   const expectedToken = dependencies.discoveryToken ?? process.env.ORCHESTRATOR_PRODUCT_TOKEN ?? '';
   const searchCatalog = dependencies.searchDropiCatalog ?? searchDropiCatalog;
+  const scoreCatalogProduct = dependencies.scoreProduct ?? scoreProduct;
 
   function requireDiscoveryContext(req: express.Request, res: express.Response, next: express.NextFunction) {
     const suppliedToken = req.header('X-Alfa-Internal-Token') ?? '';
@@ -121,7 +143,7 @@ export function createProductApp(dependencies: ProductServerDependencies = {}) {
 
   app.post('/tools/score_product', requireDiscoveryContext, async (req, res) => {
     try {
-      res.json(await scoreProduct({ ...req.body, tenant_id: res.locals.discoveryContext.tenant_id }));
+      res.json(await scoreCatalogProduct({ ...req.body, tenant_id: res.locals.discoveryContext.tenant_id }));
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -182,5 +204,11 @@ export function createProductApp(dependencies: ProductServerDependencies = {}) {
 
 const PORT = Number(process.env.PORT ?? 4001);
 if (require.main === module) {
-  createProductApp().listen(PORT, () => console.log(`[subagent-producto] escuchando en :${PORT}`));
+  try {
+    loadProductServiceConfig();
+    createProductApp().listen(PORT, () => console.log(`[subagent-producto] escuchando en :${PORT}`));
+  } catch (error) {
+    console.error('[subagent-producto] fatal startup configuration error', error instanceof Error ? error.message : 'unknown');
+    process.exit(1);
+  }
 }

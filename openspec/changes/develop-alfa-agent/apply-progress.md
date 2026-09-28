@@ -403,3 +403,77 @@ This one bounded manual correction fixes the validator's reproduced direct TypeS
 - Task 4.5 remains complete based on direct typecheck, dashboard contracts, production build, SQL structural contracts, and the parent-provided disposable runtime evidence above. Cumulative state remains 22/27, with only Phase 5 tasks 5.1–5.5 pending.
 - Warning: the disposable fixture proves separate tenant A/B product/detail isolation but did not seed a wrong-tenant related row under the same product or multiple evaluations to check latest-row selection at runtime. Existing SQL contracts assert tenant equality and latest ordering. Expanding those runtime fixtures would require the parent to rerun the guarded disposable DB scenario; do not claim that stronger scenario was run.
 - Native SDD artifact store is OpenSpec. The session requested hybrid; the cumulative OpenSpec task/progress files are the native-locator artifacts, and `sdd/develop-alfa-agent/apply-progress` remains the Engram mirror.
+
+## PR4 — deployment wiring and controlled smoke — 2026-09-28
+
+This is a read-merged continuation of the complete PR1–PR3 apply history above. The current work unit starts at final published PR3B `2e2366f41b43792d81bfe24a54578441b9205fb0` on `feat/alfa-agent-pr4-deployment`; no remote operation or deployment was performed.
+
+### Cumulative task state
+
+- [x] PR1–PR3: 22 tasks, including parent-reported disposable PostgreSQL verification already documented above.
+- [x] 5.1 — Compose now requires the shared dashboard/orchestrator credential, a separate orchestrator/product credential, and a server-owned tenant UUID; the product and orchestrator reject empty/placeholder credentials at startup, and the dashboard rejects copied placeholder credentials before dispatch. The public orchestrator Traefik route and its shared-network attachment were removed; the dashboard remains the public route and addresses the orchestrator by the internal service name.
+- [x] 5.2 — Added deterministic fixture smoke orchestration across chat, authenticated product HTTP endpoints, persisted evaluation/audit writes, and the extracted tenant-scoped dashboard pipeline query. Only explicit `ALFA_SMOKE_DATABASE_URL` is accepted; the URL must target loopback and a smoke/test/disposable database name. There is no `DATABASE_URL` fallback. Output contains fixture mode, run ID, journey counts, forbidden transport count, and explicitly skipped live integrations without returning database credentials.
+- [ ] 5.3 — Focused suites, package builds, dashboard direct typecheck, and smoke TypeScript compilation passed (details below). Actual PostgreSQL-backed smoke acceptance remains pending because `ALFA_SMOKE_DATABASE_URL` is unavailable. The command's missing-URL result proves only that the harness fails closed.
+- [x] 5.4 — Added `docs/discovery-rollout.md` with the required schema/backup/migration/config/deploy/legacy-caller/verification/live-read-only sequence.
+- [x] 5.5 — The same document records the code-first rollback boundary, additive-schema retention conditions, no-row-deletion rule, no-public-route/no-unguarded-tools rule, and evidence fields that must remain explicitly unverified until proven.
+- Cumulative state: **26/27 complete; only task 5.3 remains pending.**
+
+### Test-first evidence and root-cause correction
+
+- **RED — deployment/config/smoke contracts:** `tsx --test orchestrator/tests/deployment-smoke.contract.test.ts` initially failed three real assertions: required Compose credential wiring was absent, the orchestrator still had public Traefik/shared-network exposure, and the smoke database guard export did not exist. Product startup credential validation was separately observed RED because `loadProductServiceConfig` was absent. Placeholder-rejection checks also failed before their config guards existed.
+- **RED — dashboard trust header contract:** `tsx --test dashboard/tests/pipeline.contract.test.ts` exited 1 with 12 passed, 1 failed, and 1 guarded PostgreSQL case skipped. The expected trusted `X-Alfa-Tenant-Id` was `undefined`: dashboard transport sent `X-Tenant-ID`/`X-Request-ID`, while orchestrator consumes `X-Alfa-Tenant-Id`/`X-Alfa-Request-Id`. The dashboard client was corrected to match the orchestrator boundary; tests now also assert the old headers are absent.
+- **RED → GREEN — injected product evaluator:** `tsx --test subagent-producto/tests/server.contract.test.ts` first returned HTTP 500 instead of 200 because the product route ignored its injected evaluator and called the global database-backed implementation. After wiring the evaluator dependency through `/tools/score_product`, the exact focused test passed 7/7 and asserted only the trusted header tenant reaches evaluation.
+- **GREEN — deployment/smoke contracts:** 5/5 passed, including startup configuration and copied-placeholder rejection, private routing, distinct credentials, loopback/disposable URL guard, and no fallback to `DATABASE_URL`.
+- **Mode:** `strict_tdd: false` remains the project configuration in `openspec/config.yaml`. New configuration, smoke, and header behavior was test-first; this does not claim project-wide Strict TDD.
+
+### Verification evidence
+
+| Check | Command / observed result |
+|---|---|
+| Orchestrator contracts | `npm.cmd run test:contract --prefix orchestrator` — exit 0; 37 passed, 0 failed, 0 skipped. |
+| Product contracts | `npm.cmd run test:contract --prefix subagent-producto` — exit 0; 15 total, 14 passed, 0 failed, 1 PostgreSQL-only case skipped because no local disposable URL was set. |
+| Dashboard contracts | `npm.cmd run test:contract --prefix dashboard` — exit 0; 14 total, 13 passed, 0 failed, 1 PostgreSQL-only case skipped because no local disposable URL was set. |
+| Orchestrator build | `npm.cmd run build --prefix orchestrator` — exit 0 (`tsc -p tsconfig.json`). |
+| Product build | `npm.cmd run build --prefix subagent-producto` — exit 0 (`tsc -p tsconfig.json`). |
+| Dashboard typecheck | `dashboard/node_modules/.bin/tsc.cmd --project dashboard/tsconfig.json --noEmit --incremental false` — exit 0. |
+| Dashboard build | `npm.cmd run build --prefix dashboard` — exit 0 with Next.js 14.2.35; compilation, type validation, static page generation, and tracing completed. |
+| Smoke script typecheck | `orchestrator/node_modules/.bin/tsc.cmd --noEmit --target ES2021 --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck --resolveJsonModule --strict orchestrator/scripts/smoke-discovery.ts` — exit 0. |
+| Fail-closed smoke configuration | `npm.cmd run smoke:discovery --prefix orchestrator` with `ALFA_SMOKE_DATABASE_URL` absent — exit 1 as expected; emitted fixture mode, run ID, `ALFA_SMOKE_DATABASE_URL_REQUIRED`, and skipped live integrations before opening a database connection. This is not a passing end-to-end smoke. |
+| Compose syntax | `docker compose config --quiet` could not run because Docker is unavailable. Python/Ruby YAML parsers were also unavailable; Compose syntax remains unverified. Static config contracts passed. |
+| Node workaround | Node 26.8.2 `tsx` requires a temporary external `os.userInfo()` preload because `uv_os_get_passwd returned ENOMEM`; each test/build command used it where needed and removed it afterward. Test output also includes a non-blocking `DEP0205` warning. |
+
+### Work-unit and rollback evidence
+
+- Runtime smoke scenario: a future authorized run uses only a disposable loopback `ALFA_SMOKE_DATABASE_URL`, deterministic provider/catalog fixtures, internal loopback product HTTP, actual product/evaluation/audit SQL, and actual `queryPipeline`; it asserts one product/evaluation result, audit linkage, observed catalog-price evidence, and zero forbidden transport calls. This scenario is implemented but has not completed against PostgreSQL in this environment.
+- Rollback: disable discovery first, then revert the dashboard proxy/header, orchestrator config, product startup boundary, Compose wiring, controlled smoke, and adjacent runbook as a cohesive PR4 unit. Keep migration 002 additive evidence schema/index during compatibility; delete no product/evaluation rows and never restore the public orchestrator route or unguarded product tools.
+- Remote/live evidence boundary: no SSH, Dokploy/API/UI mutation, production `alfa_db`, live Dropi/LLM/n8n call, credential inspection, or deployment was performed. Live credentials, Dropi selectors, private network/tunnel path, deployed schema/backup, legacy deployed n8n behavior, and platform reliability remain unverified.
+- Workload: the PR4 package is one cohesive deployment-and-controlled-smoke boundary after one honest slicing pass; the maintainer's pre-approval for a `size:exception` applies if its measured authored diff exceeds 400 lines. Exact additions/deletions and commit identities will be appended after candidate freeze.
+
+### Files changed in PR4
+
+| File | Change |
+|---|---|
+| `.env.example` | Non-working credential placeholders, server tenant example, separate development DB example, and explicit loopback smoke DB guidance. |
+| `docker-compose.yml` | Required credential/tenant interpolations; protected orchestrator moved off shared network and removed from public Traefik; dashboard remains the only public discovery entry. |
+| `orchestrator/src/config.ts` | Rejects example placeholders in required credentials in addition to existing token/tenant/URL validation. |
+| `orchestrator/package.json` | Adds `smoke:discovery`. |
+| `orchestrator/scripts/smoke-discovery.ts` | Adds fail-closed controlled provider/catalog journey and actual tenant-scoped pipeline read. |
+| `orchestrator/tests/deployment-smoke.contract.test.ts` | Adds Compose, service credential, placeholder, public-route, and disposable-URL contracts. |
+| `dashboard/src/lib/orchestratorClient.ts` | Sends the exact trusted tenant/request header names required by the orchestrator and rejects example placeholders. |
+| `dashboard/tests/pipeline.contract.test.ts` | Captures RED/GREEN regression contract for the dashboard-to-orchestrator header mismatch. |
+| `subagent-producto/src/server.ts` | Validates product credential at startup and injects the scoring operation for deterministic DB-bound smoke. |
+| `subagent-producto/tests/server.contract.test.ts` | Proves the injected scoring route preserves the trusted tenant boundary. |
+| `docs/discovery-rollout.md` | Documents safe rollout and rollback order and explicit unverified evidence boundaries. |
+| `openspec/changes/develop-alfa-agent/tasks.md` | Marks 5.1, 5.2, 5.4, 5.5 complete; keeps 5.3 pending. |
+
+## Key Learnings
+
+1. The dashboard sent tenant and request headers that did not match the orchestrator's accepted names, so authenticated deployment would fail before provider dispatch.
+2. A controlled smoke must inject persistence dependencies as well as provider/catalog fixtures to keep every database connection pinned to the explicit disposable URL.
+3. The Compose route and shared-network attachment both matter: removing only Traefik labels would still leave the orchestrator reachable on a broadly shared service network.
+
+### Final slice decision and measured size
+
+- One honest cohesion pass kept 5.1–5.5 together: compose credentials/networking, the matching controlled path contract, verification, and its rollout/rollback boundaries are one deployable trust-boundary unit. Splitting smoke from the required protected-path wiring would leave either child without an autonomous end-to-end acceptance boundary.
+- Exact authored additions plus deletions against PR3B, excluding generated lockfiles: **552 (532 additions + 20 deletions)**. Applied the maintainer's standing pre-approval for `size:exception` after this one slicing pass; no code, tests, or documentation were trimmed.
+- Implementation and evidence commit identities: to be added in the final state update after candidate commit.

@@ -4,9 +4,11 @@ import express from 'express';
 import test, { after, before } from 'node:test';
 
 type SearchFunction = (input: Record<string, unknown>) => Promise<unknown>;
+type ScoreFunction = (input: Record<string, unknown>) => Promise<unknown>;
 type ProductAppFactory = (dependencies?: {
   discoveryToken?: string;
   searchDropiCatalog?: SearchFunction;
+  scoreProduct?: ScoreFunction;
 }) => express.Express;
 
 const tenantId = '00000000-0000-0000-0000-000000000001';
@@ -45,9 +47,10 @@ after(async () => {
 async function withProductApp<T>(
   searchDropiCatalog: SearchFunction,
   run: (url: string) => Promise<T>,
+  scoreProduct?: ScoreFunction,
 ) {
   assert.equal(typeof createProductApp, 'function', 'server must export an injectable Express app factory');
-  const app = createProductApp!({ discoveryToken: expectedToken, searchDropiCatalog });
+  const app = createProductApp!({ discoveryToken: expectedToken, searchDropiCatalog, scoreProduct });
   const server = app.listen(0);
   await once(server, 'listening');
   const address = server.address();
@@ -139,4 +142,26 @@ test('product discovery rejects a body tenant that conflicts with trusted contex
     assert.equal(response.status, 400);
   });
   assert.equal(calls, 0);
+});
+
+test('product scoring calls the injected evaluator with only trusted tenant context', async () => {
+  const calls: Record<string, unknown>[] = [];
+  await withProductApp(async () => ({ count: 0, products: [] }), async (url) => {
+    const response = await fetch(`${url}/tools/score_product`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'X-Alfa-Internal-Token': expectedToken,
+        'X-Alfa-Tenant-Id': tenantId,
+        'X-Alfa-Request-Id': requestId,
+      },
+      body: JSON.stringify({ product_id: '00000000-0000-0000-0000-000000000003' }),
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { result: 'fixture-evaluation' });
+  }, async (input) => {
+    calls.push(input);
+    return { result: 'fixture-evaluation' };
+  });
+  assert.deepEqual(calls, [{ product_id: '00000000-0000-0000-0000-000000000003', tenant_id: tenantId }]);
 });

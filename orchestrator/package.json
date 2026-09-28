@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test:contract": "tsx --test tests/*.test.ts",
+    "smoke:discovery": "tsx scripts/smoke-discovery.ts",
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn src/index.ts"
   },

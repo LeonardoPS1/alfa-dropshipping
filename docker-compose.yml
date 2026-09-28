@@ -13,6 +13,9 @@ services:
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_BASE_URL=${LLM_BASE_URL}
       - LLM_MODEL=${LLM_MODEL}
+      - ORCHESTRATOR_INTERNAL_TOKEN=${DASHBOARD_ORCHESTRATOR_TOKEN:?Set DASHBOARD_ORCHESTRATOR_TOKEN in the deployment environment}
+      - ORCHESTRATOR_TENANT_ID=${ALFA_TENANT_ID:?Set ALFA_TENANT_ID in the deployment environment}
+      - ORCHESTRATOR_PRODUCT_TOKEN=${ORCHESTRATOR_PRODUCT_TOKEN:?Set ORCHESTRATOR_PRODUCT_TOKEN in the deployment environment}
       - MCP_PRODUCTO_URL=http://alfa-subagent-producto:4001
       - MCP_COPYWRITING_URL=http://alfa-subagent-copywriting:4002
       - MCP_IMAGEN_URL=http://alfa-subagent-imagen:4003
@@ -28,13 +31,6 @@ services:
       - alfa-subagent-ads
     networks:
       - alfa-network
-      - shared-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.alfa.rule=Host(`alfa.aicorebots.com`)"
-      - "traefik.http.routers.alfa.entrypoints=websecure"
-      - "traefik.http.routers.alfa.tls.certresolver=letsencrypt"
-      - "traefik.http.services.alfa.loadbalancer.server.port=3000"
 
   alfa-subagent-producto:
     build: ./subagent-producto
@@ -48,6 +44,7 @@ services:
       - DROPI_PASSWORD=${DROPI_PASSWORD}
       - META_AD_LIBRARY_TOKEN=${META_AD_LIBRARY_TOKEN}
       - INTERNAL_AUTOMATION_TOKEN=${INTERNAL_AUTOMATION_TOKEN}
+      - ORCHESTRATOR_PRODUCT_TOKEN=${ORCHESTRATOR_PRODUCT_TOKEN:?Set ORCHESTRATOR_PRODUCT_TOKEN in the deployment environment}
     volumes:
       - alfa-dropi-session:/app/.sessions
     networks:
@@ -152,6 +149,8 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - ALFA_ORCHESTRATOR_URL=http://alfa-orchestrator:3000
+      - DASHBOARD_ORCHESTRATOR_TOKEN=${DASHBOARD_ORCHESTRATOR_TOKEN:?Set DASHBOARD_ORCHESTRATOR_TOKEN in the deployment environment}
+      - ALFA_TENANT_ID=${ALFA_TENANT_ID:?Set ALFA_TENANT_ID in the deployment environment}
       - NEXTAUTH_URL=${NEXTAUTH_URL}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - DASHBOARD_ADMIN_EMAIL=${DASHBOARD_ADMIN_EMAIL}

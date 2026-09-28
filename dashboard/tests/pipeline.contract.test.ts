@@ -175,8 +175,10 @@ test('orchestrator client sends trusted headers and no caller-selected tenant bo
   assert.equal(request?.url, '/chat');
   assert.deepEqual(request?.data, { message: 'Find products' });
   assert.equal(request?.headers['X-Alfa-Internal-Token'], 'server-secret');
-  assert.equal(request?.headers['X-Tenant-ID'], tenantA);
-  assert.equal(request?.headers['X-Request-ID'], 'request-id');
+  assert.equal(request?.headers['X-Alfa-Tenant-Id'], tenantA);
+  assert.equal(request?.headers['X-Alfa-Request-Id'], 'request-id');
+  assert.equal(request?.headers['X-Tenant-ID'], undefined);
+  assert.equal(request?.headers['X-Request-ID'], undefined);
 });
 
 test('orchestrator client fails closed without its internal credential and preserves non-success response bodies', async () => {

@@ -12,12 +12,15 @@ export async function sendChatMessage(
   transport: OrchestratorTransport = defaultTransport()
 ): Promise<OrchestratorResult> {
   if (!transport.internalToken?.trim()) throw new Error('Orchestrator internal credential is not configured');
+  if (/^REPLACE_WITH_/i.test(transport.internalToken.trim())) {
+    throw new Error('Orchestrator internal credential must not be an example placeholder');
+  }
 
   try {
     const response = await transport.post('/chat', { message }, {
       'X-Alfa-Internal-Token': transport.internalToken,
-      'X-Tenant-ID': tenantId,
-      'X-Request-ID': requestId,
+      'X-Alfa-Tenant-Id': tenantId,
+      'X-Alfa-Request-Id': requestId,
     });
     if (response.status < 200 || response.status >= 300) return { status: response.status, body: response.data };
     return response.data;
