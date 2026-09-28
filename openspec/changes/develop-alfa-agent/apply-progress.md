@@ -379,5 +379,5 @@ Task 4.5 is complete: local contracts and production build pass; the guarded dis
 
 ### Final candidate measurement
 
-- PR3B final authored changed-line count is **289**; total additions plus deletions are **294** excluding generated `dashboard/package-lock.json`, including five build-generated lines in `dashboard/next-env.d.ts`. The slice remains under 400 lines.
+- PR3B final authored changed-line count is **294**; total additions plus deletions are **299** excluding generated `dashboard/package-lock.json`, including five build-generated lines in `dashboard/next-env.d.ts`. The slice remains under 400 lines.
 - Final `git diff --check` passed. Task ledger readback confirms **22 complete and 5 pending**.
