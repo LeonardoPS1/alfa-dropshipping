@@ -307,7 +307,7 @@ This is a read-merged continuation of the complete PR1/PR2 apply history above. 
 - Base: PR2D final `1d988f7` on `feat/alfa-agent-pr3-dashboard`.
 - Commit: `7ad957a` — `feat(dashboard): add tenant-bound chat and pipeline reads`.
 - PR3A implements the dashboard-local `tsx --test` contract setup, centralized authenticated server tenant resolution, session-bound chat proxy with generated request ID and internal credential, schema-compatible tenant-scoped pipeline query, non-2xx read failures, evidence selection, detail query helper, and contract/guarded PostgreSQL tests.
-- PR3A authored additions plus deletions: **691 lines**, excluding generated `dashboard/package-lock.json`. This is over the 400-line review budget after the one permitted backend/contracts-versus-UI split; no further slicing/code-golf was performed. Recommend `size:exception` for PR3A.
+- PR3A authored additions plus deletions: **691 lines**, excluding generated `dashboard/package-lock.json`. After one honest backend/contracts-versus-UI split, the maintainer explicitly approved `size:exception` for PR3A. No further slicing or code-golf was performed.
 
 ### PR3B UI/final-integration boundary
 
@@ -372,14 +372,14 @@ Task 4.5 is complete: local contracts and production build pass; the guarded dis
 ### Branch and rollback boundary
 
 - PR2D final base: `1d988f7`.
-- PR3A parent: `7ad957a` on `feat/alfa-agent-pr3-dashboard`, authored changed lines **691** excluding generated package lock; the one allowed backend/contracts vs UI split is exhausted. Retain the `size:exception` recommendation for PR3A; no approval is claimed.
-- PR3B child: `cd16462` on `feat/alfa-agent-pr3-dashboard-ui`, parent PR3A `7ad957a`; authored changed lines were **237 before this corrective rerun**. Final count will be recalculated from the PR3A base excluding generated package-lock changes.
+- PR3A parent: `7ad957a` on `feat/alfa-agent-pr3-dashboard`, authored changed lines **691** excluding generated package lock; the one allowed backend/contracts vs UI split is exhausted. The maintainer explicitly approved PR3A's `size:exception` after that honest split.
+- PR3B child: `cd16462` on `feat/alfa-agent-pr3-dashboard-ui`, parent PR3A `7ad957a`; authored changed lines were **237 before the corrective commits**, and the final cumulative child count is **329 authored lines** excluding generated package-lock changes.
 - Rollback: revert only new corrective type fixes and task/status evidence to restore `cd16462`; reverting PR3B restores PR3A; reverting PR3A then returns to PR2D `1d988f7`. Preserve migration 002 and product/evaluation evidence; do not delete rows.
 - No push, amend, rebase, force, Compose/env edit, private networking, deployment, remote DB access, or PR4 work was performed.
 
 ### Final candidate measurement
 
-- PR3B final authored changed-line count is **329**; total additions plus deletions are **334** excluding generated `dashboard/package-lock.json`, including five build-generated lines in `dashboard/next-env.d.ts`. This remains under 400; PR3A remains 691 lines with an unapproved `size:exception` recommendation.
+- PR3B final authored changed-line count is **329**; total additions plus deletions are **334** excluding generated `dashboard/package-lock.json`, including five build-generated lines in `dashboard/next-env.d.ts`. This remains under 400; PR3A's 691-line `size:exception` is maintainer-approved.
 - Final `git diff --check` passed. Task ledger readback confirms **22 complete and 5 pending**.
 
 ## PR3 manual corrective pass — dashboard contract typecheck — 2026-09-28
