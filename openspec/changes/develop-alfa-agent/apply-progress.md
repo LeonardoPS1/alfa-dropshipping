@@ -476,4 +476,4 @@ This is a read-merged continuation of the complete PR1–PR3 apply history above
 
 - One honest cohesion pass kept 5.1–5.5 together: compose credentials/networking, the matching controlled path contract, verification, and its rollout/rollback boundaries are one deployable trust-boundary unit. Splitting smoke from the required protected-path wiring would leave either child without an autonomous end-to-end acceptance boundary.
 - Exact authored additions plus deletions against PR3B, excluding generated lockfiles: **552 (532 additions + 20 deletions)**. Applied the maintainer's standing pre-approval for `size:exception` after this one slicing pass; no code, tests, or documentation were trimmed.
-- Implementation and evidence commit identities: to be added in the final state update after candidate commit.
+- Implementation work-unit commit: `5c2108d04312463836ef17e830d52b318a84d086` (`feat(discovery): secure deployment and add controlled smoke`); not pushed.
