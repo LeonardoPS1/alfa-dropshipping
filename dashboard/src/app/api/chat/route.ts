@@ -1,26 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { resolveTenantId } from '@/lib/tenantContext';
 import { sendChatMessage } from '@/lib/orchestratorClient';
-import { DEFAULT_TENANT_ID } from '@/lib/db';
+import { randomUUID } from 'node:crypto';
+import { proxyChatRequest } from '@/lib/chatProxy';
 
 // Proxy hacia el orquestador ALFA. El tenant_id se fija server-side según la
 // sesión autenticada — nunca se confía en un tenant_id que mande el cliente.
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: 'no autenticado' }, { status: 401 });
-  }
-
-  const { message } = await req.json();
-  if (!message) {
-    return NextResponse.json({ error: 'message es requerido' }, { status: 400 });
-  }
-
-  try {
-    const result = await sendChatMessage(DEFAULT_TENANT_ID, message);
-    return NextResponse.json(result);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message ?? 'error interno' }, { status: 500 });
-  }
+  let input: unknown;
+  try { input = await req.json(); } catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }); }
+  const response = await proxyChatRequest({
+    getSession: () => getServerSession(authOptions),
+    resolveTenant: (session) => resolveTenantId(session),
+    createRequestId: randomUUID,
+    sendMessage: sendChatMessage,
+  })(input);
+  return NextResponse.json(response.body, { status: response.status });
 }

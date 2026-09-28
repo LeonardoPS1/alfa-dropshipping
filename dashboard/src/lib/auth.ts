@@ -1,6 +1,10 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
+import { getServerSession } from 'next-auth';
+import { DEFAULT_TENANT_ID, resolveTenantId } from './tenantContext';
+
+export { resolveTenantId } from './tenantContext';
 
 // Auth de un solo usuario admin (vos) — sin registro público. Si más
 // adelante se abre a más gente, esto se reemplaza por una tabla
@@ -31,3 +35,8 @@ export const authOptions: NextAuthOptions = {
   pages: { signIn: '/login' },
   secret: process.env.NEXTAUTH_SECRET,
 };
+
+export async function getAuthenticatedTenantId() {
+  const session = await getServerSession(authOptions);
+  return { session, tenantId: session ? resolveTenantId(session, process.env.ALFA_TENANT_ID ?? DEFAULT_TENANT_ID) : null };
+}
