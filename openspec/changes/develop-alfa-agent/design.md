@@ -81,7 +81,7 @@ Failure branches stop at the first untrusted tenant, malformed provider batch, f
 | `db/migrations/002_discovery_evidence.sql` | Create | Add `evaluations.evidence` and tenant/source/external-ID uniqueness after duplicate preflight. |
 | `docker-compose.yml`, `.env.example` | Modify | Internal-only orchestrator route and distinct configured service credentials; document deployment inputs. |
 | `orchestrator/package.json`, `subagent-producto/package.json`, `dashboard/package.json` and corresponding lockfiles | Modify | Add `tsx` development dependency and exact `test:contract` scripts; orchestrator also receives `smoke:discovery`. |
-| `orchestrator/tests/chat.contract.test.ts`, `subagent-producto/tests/discovery.contract.test.ts`, `dashboard/tests/pipeline.contract.test.ts` | Create | Controlled tenant, transcript, identity, evidence, query, and failure contracts. |
+| `orchestrator/tests/auth.contract.test.ts`, `orchestrator/tests/orchestration.contract.test.ts`, `orchestrator/tests/tools.contract.test.ts`, `orchestrator/tests/transcript.contract.test.ts`, `subagent-producto/tests/discovery.contract.test.ts`, `dashboard/tests/pipeline.contract.test.ts` | Create/modify | Controlled tenant, transcript, identity, evidence, query, and failure contracts. |
 | `orchestrator/scripts/smoke-discovery.ts`, `dashboard/src/lib/pipelineQuery.ts` | Create | Controlled cross-service smoke command and reusable tenant-scoped query without a Next route dependency. |
 
 No external publishing or automation file is changed in this slice. Existing unrelated unsafe endpoints are not validated as production-safe by this design.

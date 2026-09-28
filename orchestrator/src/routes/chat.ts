@@ -46,6 +46,8 @@ export function createChatRouter(dependencies: ChatDependencies): Router {
       ? req.body as Record<string, unknown>
       : {};
     if (body.tenant_id !== undefined && body.tenant_id !== tenantId) {
+      const recorded = await recordFailure(writeAudit, tenantId, requestId, 'protocol_failure');
+      if (!recorded) return res.status(500).json({ error: 'audit_failure', request_id: requestId });
       return res.status(403).json({ error: 'tenant_context_mismatch' });
     }
     if (typeof body.message !== 'string' || !body.message.trim() || body.message.length > MAX_USER_MESSAGE_LENGTH) {

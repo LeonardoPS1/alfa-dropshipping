@@ -4,6 +4,7 @@ import express from 'express';
 import { AddressInfo } from 'node:net';
 
 const chat = require('../src/routes/chat') as Record<string, any>;
+const { sanitize } = require('../src/db/pool') as { sanitize: (value: unknown) => unknown };
 const token = 'orchestrator-audit-test-token';
 const productToken = 'separate-product-service-token';
 const tenantId = '11111111-1111-4111-8111-111111111111';
@@ -204,4 +205,19 @@ test('audit persistence failure never claims a successful result', async () => {
   assert.equal(response.status, 500);
   assert.notEqual((await response.json() as any).status, 'complete');
   assert.equal(providerCalls, 1);
+});
+
+test('audit sanitization redacts credential-bearing connection URIs under ordinary fields', () => {
+  const sanitized = sanitize({ detail: 'postgresql://audit-user:credential-marker@db.invalid/alfa' });
+  const encoded = JSON.stringify(sanitized);
+  assert.ok(!encoded.includes('credential-marker'), 'credential-bearing URI values must not be retained');
+});
+
+test('audit sanitization omits oversized object keys without collisions', () => {
+  const oversizedKey = 'k'.repeat(1_000_000);
+  const sanitized = sanitize({ safe: 'preserved', [oversizedKey]: 'discarded' }) as Record<string, unknown>;
+  const encoded = JSON.stringify(sanitized);
+  assert.ok(encoded.length < 1024, 'sanitized output must remain bounded');
+  assert.ok(!encoded.includes(oversizedKey), 'oversized property names must be omitted as a unit');
+  assert.equal(sanitized.safe, 'preserved');
 });

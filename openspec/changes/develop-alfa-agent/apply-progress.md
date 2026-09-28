@@ -256,5 +256,36 @@ The resolved mode is Standard (`strict_tdd: false` in `openspec/config.yaml`). N
 - Focused check: orchestrator contract suite — 30/30 passed after the temporary environment workaround; both in-scope service builds and the product contracts also completed with the outcomes above.
 - Rollback boundary: revert only the PR2D changes to `orchestrator/src/db/pool.ts`, `orchestrator/src/routes/chat.ts`, `orchestrator/tests/orchestration.contract.test.ts`, and the PR2D task/status evidence in this file, `tasks.md`, and `docs/implementation-status.md`. This leaves PR2A–C and PR1 boundaries intact.
 - No generated lockfile is part of PR2D. After one honest slicing pass, the maintainer explicitly approved `size:exception`; do not minimize code, omit tests/docs, or alter the established A/B/C boundaries to fit 400 lines.
-- Final PR2D authored additions plus deletions against PR2C `104b8e9`: **487 lines (456 additions + 31 deletions)**. No generated lockfile is included. This exceeds the default 400-line review budget; the explicit `size:exception` covers this cohesive bounded audit-hardening slice.
+- Initial PR2D authored count before corrective rerun: 487 lines (456 additions + 31 deletions) against PR2C `104b8e9`; the final cumulative PR2D count is recorded in the corrective evidence below. No generated lockfile is included. This exceeds the default 400-line review budget; the explicit `size:exception` covers this cohesive bounded audit-hardening slice.
 - No push, pull request, or deployment was performed. Parent handles remote delivery.
+
+## PR2D corrective rerun — audit and evidence-boundary fixes — 2026-09-28
+
+The automatic-mode gate identified three concrete defects and one stale artifact path. The worktree was clean at `f535c093ef017c11c18173bd1b2623fdc51c6289` before this correction; no earlier PR2 commits were amended, rebased, or reverted.
+
+### Root causes and fixes
+
+- A body tenant mismatch was rejected after authentication and trusted tenant/request-ID validation but returned before `recordFailure`; valid attributed rejections therefore had no audit event. It now records a bounded `protocol_failure` against only the validated header tenant and request ID, keeps returning 403 when recorded, fails closed with 500 if audit persistence fails, and never dispatches a provider or tool. Unauthenticated requests and invalid/untrusted tenant headers still return before audit.
+- The audit sanitizer redacted credentials based on property names but retained credential-bearing URI userinfo and sensitive URI query values under ordinary property names. String sanitization now redacts URI credentials/query parameters before truncation.
+- Sanitization bounded values and the number of object entries but copied arbitrarily long property names. Property names longer than 128 characters are now omitted in full rather than truncated into potentially colliding names; output remains deterministic and bounded.
+- Task 1.2's obsolete chat-specific test-file reference was replaced with existing `orchestrator/tests/auth.contract.test.ts`, `orchestrator/tests/orchestration.contract.test.ts`, `orchestrator/tests/tools.contract.test.ts`, and `orchestrator/tests/transcript.contract.test.ts`; the design's affected-files row was corrected to match.
+
+### RED → GREEN and required checks
+
+| Check | Command / observed outcome |
+|---|---|
+| RED before production edits | `npm.cmd run test:contract --prefix orchestrator` with temporary Node preload — exit 1; 32 tests, 28 passed, 4 failed. The body-tenant mismatch nested case observed 0 audits instead of 1 (and its parent group failed); URI credential redaction retained the test sentinel; the million-character key made sanitized JSON exceed 1,024 characters. No sentinel value was emitted in the assertion message. |
+| GREEN contracts | `npm.cmd run test:contract --prefix orchestrator` with temporary Node preload — exit 0; 32/32 passed, 0 skipped. The authenticated conflict is audited against trusted context, while missing/invalid credentials and untrusted tenant cases still produce zero audits and no dispatch. |
+| Orchestrator build | `npm.cmd run build --prefix orchestrator` with temporary Node preload — exit 0 (`tsc -p tsconfig.json`). |
+| Product contracts | `npm.cmd run test:contract --prefix subagent-producto` with temporary Node preload — exit 0; 14 tests, 13 passed, 0 failed, 1 local PostgreSQL-only test skipped because no `LOCAL_TEST_DATABASE_URL` was configured. The skipped case is not a pass. |
+| Product build | `npm.cmd run build --prefix subagent-producto` with temporary Node preload — exit 0 (`tsc -p tsconfig.json`). |
+| Whitespace | `git diff --check` — exit 0 on the final corrective candidate. |
+| Environment cleanup | Node 26.8.2 initially required `os.userInfo()` preload to work around `uv_os_get_passwd returned ENOMEM`; temporary file and `NODE_OPTIONS` override were removed after checks. No live LLM, Dropi, n8n, database, Dokploy, SSH, or deployment operation was performed. |
+
+### Corrected evidence and final boundary
+
+- `tasks.md` task 1.2 now points only to existing contract files; the cumulative state remains 15/27.
+- Corrective commit: recorded after verification. PR2D remains the work unit after PR2C `104b8e9`; the earlier PR2D commit is preserved as a parent of this corrective commit.
+- Final cumulative PR2D authored additions plus deletions against PR2C `104b8e9`: **565 lines (531 additions + 34 deletions)**. No generated lockfile is included. The maintainer-approved `size:exception` remains in effect after the initial slicing pass.
+- Rollback: revert the corrective commit to restore the prior PR2D candidate; reverting the PR2D work-unit commit as well returns to PR2C without disturbing PR2A–C or PR1.
+- No push, pull request, PR3 work, private-network configuration, or deployment was performed.

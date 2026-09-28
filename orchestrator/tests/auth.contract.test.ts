@@ -20,6 +20,7 @@ let server: ReturnType<ReturnType<typeof express>['listen']> | undefined;
 let providerCalls = 0;
 let toolCalls = 0;
 let auditCalls = 0;
+let auditEvents: any[] = [];
 let providerMessages: any[] = [];
 
 function createConfig() {
@@ -42,7 +43,7 @@ async function startServer() {
       return { content: 'ready', toolCalls: [], assistantMessage: { role: 'assistant', content: 'ready' } };
     },
     callTool: async () => { toolCalls += 1; return {}; },
-    logAgentCall: async () => { auditCalls += 1; },
+    logAgentCall: async (event: any) => { auditCalls += 1; auditEvents.push(event); },
   }));
   server = app.listen(0, '127.0.0.1');
   await new Promise<void>((resolve) => server!.once('listening', resolve));
@@ -59,6 +60,7 @@ afterEach(async () => {
   providerCalls = 0;
   toolCalls = 0;
   auditCalls = 0;
+  auditEvents = [];
   providerMessages = [];
 });
 
@@ -117,7 +119,15 @@ test('invalid trusted tenant/request UUID and conflicting body tenant stop befor
       assert.ok(response.status >= 400);
       assert.equal(providerCalls, 0);
       assert.equal(toolCalls, 0);
-      assert.equal(auditCalls, 0);
+      if (item.name === 'body tenant mismatch') {
+        assert.equal(response.status, 403);
+        assert.equal(auditCalls, 1);
+        assert.equal(auditEvents[0].tenantId, tenantId);
+        assert.equal(auditEvents[0].metadata.request_id, requestId);
+        assert.equal(auditEvents[0].metadata.outcome, 'protocol_failure');
+      } else {
+        assert.equal(auditCalls, 0);
+      }
     });
   }
 });
