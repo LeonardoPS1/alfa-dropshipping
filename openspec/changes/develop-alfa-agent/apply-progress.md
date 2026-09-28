@@ -439,7 +439,7 @@ This is a read-merged continuation of the complete PR1–PR3 apply history above
 | Dashboard build | `npm.cmd run build --prefix dashboard` — exit 0 with Next.js 14.2.35; compilation, type validation, static page generation, and tracing completed. |
 | Smoke script typecheck | `orchestrator/node_modules/.bin/tsc.cmd --noEmit --target ES2021 --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck --resolveJsonModule --strict orchestrator/scripts/smoke-discovery.ts` — exit 0. |
 | Fail-closed smoke configuration | `npm.cmd run smoke:discovery --prefix orchestrator` with `ALFA_SMOKE_DATABASE_URL` absent — exit 1 as expected; emitted fixture mode, run ID, `ALFA_SMOKE_DATABASE_URL_REQUIRED`, and skipped live integrations before opening a database connection. This is not a passing end-to-end smoke. |
-| Compose syntax | `docker compose config --quiet` could not run because Docker is unavailable. Python/Ruby YAML parsers were also unavailable; Compose syntax remains unverified. Static config contracts passed. |
+| Initial Compose syntax check (before the later parent parse) | `docker compose config --quiet` could not run because Docker was unavailable. Python/Ruby YAML parsers were also unavailable; static config contracts passed. The later Dokploy correction section records parent validation of the corrected file. |
 | Node workaround | Node 26.8.2 `tsx` requires a temporary external `os.userInfo()` preload because `uv_os_get_passwd returned ENOMEM`; each test/build command used it where needed and removed it afterward. Test output also includes a non-blocking `DEP0205` warning. |
 
 ### Work-unit and rollback evidence
@@ -569,3 +569,40 @@ The parent-provided normal disposable smoke is not rerun: its accepted URL has n
 - Candidate base: final published PR3B `2e2366f41b43792d81bfe24a54578441b9205fb0`.
 - Parent validator's pre-correction count: 703 authored lines (682 additions + 21 deletions). The final candidate count, including this guard and cumulative SDD/runbook artifacts but excluding generated package lockfiles, is **768** (747 additions + 21 deletions).
 - After one honest cohesive slicing pass, applied the maintainer's standing pre-approval for `size:exception` to this 768-line candidate. The protected loopback harness, deployment wiring, end-to-end smoke, and rollback/runbook form one acceptance boundary; splitting the safety guard away would leave the smoke unsafe or leave the security-boundary candidate without its acceptance contract. No tests or documentation were removed to reduce size.
+
+## PR4 Dokploy Compose compatibility correction — 2026-09-28
+
+Parent-provided deployment inspection verified Dokploy v0.30.7, one empty single-service Application, zero Compose services, and an infrastructure Compose stack whose services are attached only to its own bridge. The existing Dokploy `dokploy-network` is overlay/Swarm/attachable. This repo correction is limited to its Compose wiring, focused deployment contract, runbook, and this SDD record; no Dokploy/SSH/service mutation or live deployment was performed.
+
+### Implementation
+
+- Removed `container_name` from all eight ALFA services so Dokploy logs/metrics and Compose-managed naming are not pinned to fixed container names.
+- Changed the Compose-managed `alfa-network` from an assumed overlay to a local bridge for ALFA service-to-service calls.
+- Declared external `alfa-private` for services that require shared infrastructure dependencies; all eight currently consume `DATABASE_URL`. Declared external `dokploy-network` only on services with public Traefik routers (`alfa-dashboard`, `alfa-subagent-imagen`, and `alfa-subagent-ecommerce`). The orchestrator remains unrouted and is not attached to `dokploy-network`.
+- `.env.example` required no change: both network names are fixed deployment topology, not secrets or user-configurable credentials.
+- The runbook now requires a Dokploy Docker Compose deployment for this multi-service repository, pre-creating/confirming both external networks, and attaching required infrastructure services to `alfa-private`. It explicitly notes the observed infra bridge-only topology and requires direct DNS/connectivity verification before rollout.
+- Reopened task 5.1 during this correction; marked it complete only after the focused contract suite passed. Cumulative task state is **27/27**. Existing rollout/rollback boundaries and prior smoke evidence remain intact.
+
+### RED → GREEN evidence
+
+- **RED:** Added a Compose compatibility contract before changing the deployment wiring. With a temporary external Node `os.userInfo()` preload for the known Node 26.8.2 `tsx` `uv_os_get_passwd returned ENOMEM` issue, `npm.cmd run test:contract --prefix orchestrator` exited 1: 41 passed, 1 failed, 0 skipped. The new assertion failed on the existing `container_name` pin; the pre-correction network definitions were also `overlay` plus `shared-network`.
+- **GREEN:** After Compose/doc changes and completion of assertions for bridge/private/public network scope and unrouted services, the same command exited 0: 42 passed, 0 failed, 0 skipped. The preload was created under `%TEMP%` and removed after the run; no preload file was committed.
+
+### Verification and boundary
+
+| Check | Observed result |
+|---|---|
+| `npm.cmd run test:contract --prefix orchestrator` | Exit 0; 42 passed, 0 failed, 0 skipped (Node preload workaround documented above). |
+| Parent-provided corrected Compose parse | `docker compose -f - config -q` through authorized VPS Docker stdin with fictitious required credentials/tenant — exit 0. It created no file or service. Optional vars defaulted blank and top-level `version` was obsolete; this proves syntax only. |
+| YAML parser fallback | Not available: repository root has no `yaml` package; no parser was installed. |
+| `git diff --check` | Exit 0. |
+| Runtime network harness | Unavailable locally; external network creation, infrastructure attachment, service-name resolution, and Dokploy rollout remain pending operator verification. |
+
+Rollback boundary is limited to `docker-compose.yml`, `orchestrator/tests/deployment-smoke.contract.test.ts`, `docs/discovery-rollout.md`, and this apply/task record. Reverting the wiring would restore Compose's overlay assumption and fixed container names; it must not restore a public orchestrator route. No `.env.example` change or secret was introduced.
+
+### Size and delivery
+
+- The correction is one cohesive deployment-network work unit: **126 authored changed lines** across five changed paths (104 additions + 22 deletions), including Compose, its focused contract, the runbook, and cumulative SDD artifacts.
+- A local full-branch recount against PR3B `2e2366f41b43792d81bfe24a54578441b9205fb0`, excluding generated lockfiles, reports **884 authored lines** (846 additions + 38 deletions). Earlier parent gate evidence recorded 768 before this correction; this current local count is retained as the latest direct measurement rather than silently reconciling the discrepancy.
+- After one honest slicing pass, the maintainer's standing `size:exception` pre-approval remains applied to the cumulative PR4 slice; no tests or docs were trimmed. Delivery remains `auto-chain` / `feature-branch-chain`.
+- No production readiness, private connectivity, live credentials/selectors, legacy n8n behavior, or platform reliability is claimed. Direct network attachment/DNS verification remains an operator prerequisite.

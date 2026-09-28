@@ -3,7 +3,6 @@ version: "3.8"
 services:
   alfa-orchestrator:
     build: ./orchestrator
-    container_name: alfa-orchestrator
     restart: unless-stopped
     environment:
       - NODE_ENV=production
@@ -31,10 +30,10 @@ services:
       - alfa-subagent-ads
     networks:
       - alfa-network
+      - alfa-private
 
   alfa-subagent-producto:
     build: ./subagent-producto
-    container_name: alfa-subagent-producto
     restart: unless-stopped
     shm_size: '1gb'
     environment:
@@ -49,11 +48,10 @@ services:
       - alfa-dropi-session:/app/.sessions
     networks:
       - alfa-network
-      - shared-network
+      - alfa-private
 
   alfa-subagent-copywriting:
     build: ./subagent-copywriting
-    container_name: alfa-subagent-copywriting
     restart: unless-stopped
     environment:
       - PORT=4002
@@ -63,11 +61,10 @@ services:
       - LLM_MODEL_COPY=${LLM_MODEL_COPY}
     networks:
       - alfa-network
-      - shared-network
+      - alfa-private
 
   alfa-subagent-imagen:
     build: ./subagent-imagen
-    container_name: alfa-subagent-imagen
     restart: unless-stopped
     environment:
       - PORT=4003
@@ -80,7 +77,8 @@ services:
       - alfa-assets:/data/assets
     networks:
       - alfa-network
-      - shared-network
+      - alfa-private
+      - dokploy-network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.alfa-assets.rule=Host(`assets.aicorebots.com`)"
@@ -90,7 +88,6 @@ services:
 
   alfa-subagent-ecommerce:
     build: ./subagent-ecommerce
-    container_name: alfa-subagent-ecommerce
     restart: unless-stopped
     environment:
       - PORT=4004
@@ -101,7 +98,8 @@ services:
       - SHOPIFY_WEBHOOK_SECRET=${SHOPIFY_WEBHOOK_SECRET}
     networks:
       - alfa-network
-      - shared-network
+      - alfa-private
+      - dokploy-network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.alfa-ecommerce.rule=Host(`ecommerce.alfa.aicorebots.com`)"
@@ -111,7 +109,6 @@ services:
 
   alfa-subagent-rrss:
     build: ./subagent-rrss
-    container_name: alfa-subagent-rrss
     restart: unless-stopped
     environment:
       - PORT=4005
@@ -123,11 +120,10 @@ services:
       - TIKTOK_ADVERTISER_ID=${TIKTOK_ADVERTISER_ID}
     networks:
       - alfa-network
-      - shared-network
+      - alfa-private
 
   alfa-subagent-ads:
     build: ./subagent-ads
-    container_name: alfa-subagent-ads
     restart: unless-stopped
     environment:
       - PORT=4006
@@ -140,11 +136,10 @@ services:
       - INTERNAL_AUTOMATION_TOKEN=${INTERNAL_AUTOMATION_TOKEN}
     networks:
       - alfa-network
-      - shared-network
+      - alfa-private
 
   alfa-dashboard:
     build: ./dashboard
-    container_name: alfa-dashboard
     restart: unless-stopped
     environment:
       - DATABASE_URL=${DATABASE_URL}
@@ -159,7 +154,8 @@ services:
       - alfa-orchestrator
     networks:
       - alfa-network
-      - shared-network
+      - alfa-private
+      - dokploy-network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.alfa-dashboard.rule=Host(`dashboard.alfa.aicorebots.com`)"
@@ -169,8 +165,10 @@ services:
 
 networks:
   alfa-network:
-    driver: overlay
-  shared-network:
+    driver: bridge
+  alfa-private:
+    external: true
+  dokploy-network:
     external: true
 
 volumes:

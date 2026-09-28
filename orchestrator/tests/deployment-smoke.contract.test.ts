@@ -42,6 +42,46 @@ test('deployment keeps orchestrator private while dashboard remains the public r
   assert.match(dashboard, /ALFA_ORCHESTRATOR_URL=http:\/\/alfa-orchestrator:3000/);
 });
 
+test('Dokploy Compose networks stay attachable and scoped to dependency or routed services', () => {
+  assert.doesNotMatch(compose, /^\s+container_name:/m);
+
+  const networkDefinitions = compose.match(/^networks:[\s\S]*?(?=^volumes:)/m)?.[0] ?? '';
+  assert.match(networkDefinitions, /alfa-network:\n\s+driver: bridge/);
+  assert.match(networkDefinitions, /alfa-private:\n\s+external: true/);
+  assert.match(networkDefinitions, /dokploy-network:\n\s+external: true/);
+  assert.doesNotMatch(networkDefinitions, /driver: overlay/);
+
+  const service = (name: string) => compose.match(new RegExp(`^  ${name}:[\\s\\S]*?(?=^  [\\w-]+:|^networks:)`, 'm'))?.[0] ?? '';
+  for (const name of [
+    'alfa-orchestrator',
+    'alfa-subagent-producto',
+    'alfa-subagent-copywriting',
+    'alfa-subagent-imagen',
+    'alfa-subagent-ecommerce',
+    'alfa-subagent-rrss',
+    'alfa-subagent-ads',
+    'alfa-dashboard',
+  ]) {
+    assert.match(service(name), /alfa-private/, `${name} requires shared infrastructure dependencies`);
+    assert.match(service(name), /alfa-network/, `${name} participates in the private ALFA service network`);
+  }
+
+  const routedServices = ['alfa-subagent-imagen', 'alfa-subagent-ecommerce', 'alfa-dashboard'];
+  for (const name of routedServices) {
+    assert.match(service(name), /dokploy-network/, `${name} has a public Traefik route`);
+  }
+  for (const name of [
+    'alfa-orchestrator',
+    'alfa-subagent-producto',
+    'alfa-subagent-copywriting',
+    'alfa-subagent-rrss',
+    'alfa-subagent-ads',
+  ]) {
+    assert.doesNotMatch(service(name), /dokploy-network|traefik\.http\.routers/, `${name} must remain unrouted`);
+  }
+  assert.doesNotMatch(service('alfa-orchestrator'), /ports:/);
+});
+
 test('product service rejects missing startup credential configuration', () => {
   assert.equal(typeof productServerModule.loadProductServiceConfig, 'function');
   assert.throws(() => productServerModule.loadProductServiceConfig({ ORCHESTRATOR_PRODUCT_TOKEN: '' }), /ORCHESTRATOR_PRODUCT_TOKEN/);
