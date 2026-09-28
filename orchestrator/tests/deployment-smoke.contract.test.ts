@@ -33,13 +33,14 @@ test('deployment wiring requires three distinct service credentials and the serv
   );
 });
 
-test('deployment keeps orchestrator private while dashboard remains the public route', () => {
+test('deployment keeps orchestrator private while Dokploy owns the dashboard public route', () => {
   const orchestrator = compose.match(/  alfa-orchestrator:[\s\S]*?(?=\n  alfa-subagent-producto:)/)?.[0] ?? '';
   const dashboard = compose.match(/  alfa-dashboard:[\s\S]*?(?=\nnetworks:)/)?.[0] ?? '';
   assert.doesNotMatch(orchestrator, /traefik\.http\.routers|shared-network/);
   assert.doesNotMatch(orchestrator, /\n\s+ports:/);
   assert.match(orchestrator, /alfa-network/);
-  assert.match(dashboard, /traefik\.http\.routers\.alfa-dashboard/);
+  assert.doesNotMatch(dashboard, /traefik\.http\.routers\.alfa-dashboard/);
+  assert.match(dashboard, /dokploy-network/);
   assert.match(dashboard, /ALFA_ORCHESTRATOR_URL=http:\/\/alfa-orchestrator:3000/);
 });
 

@@ -156,12 +156,6 @@ services:
       - alfa-network
       - alfa-private
       - dokploy-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.alfa-dashboard.rule=Host(`dashboard.alfa.aicorebots.com`)"
-      - "traefik.http.routers.alfa-dashboard.entrypoints=websecure"
-      - "traefik.http.routers.alfa-dashboard.tls.certresolver=letsencrypt"
-      - "traefik.http.services.alfa-dashboard.loadbalancer.server.port=3000"
 
 networks:
   alfa-network:
