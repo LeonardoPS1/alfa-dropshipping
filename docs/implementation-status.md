@@ -46,7 +46,7 @@ Fresh PR 3 checks in the current environment are:
 ## Deployment and Git blockers
 
 - No Dokploy application deployment or configured-token HTTP success is claimed in PR 3. Deployment configuration remains PR 4 scope.
-- PR3 delivery status: PR3A `7ad957a` has not been pushed. The remote PR3B branch is at intermediate commit `7ab5c43`; the final local child is `f5e2ad0` on `feat/alfa-agent-pr3-dashboard-ui`. The parent will push both branches after the documentation commit.
+- PR3 delivery status: PR3A `7ad957a` has not been pushed. The remote PR3B branch remains at intermediate commit `7ab5c43`; the local child contains implementation commit `f5e2ad0` and documentation commit `677b87e` on `feat/alfa-agent-pr3-dashboard-ui`. The parent will push both branches.
 - PR3A contains 691 authored changed lines excluding generated `dashboard/package-lock.json`. After one honest backend/contracts versus UI split, the maintainer approved `size:exception` for PR3A; no additional PR3A split or code-size reduction was attempted.
 - The dedicated database rehearsal is not a claim of deployed application readiness or a backup of pre-existing production ALFA data. PostgreSQL/PgBouncer are host-published and currently reachable only on the Compose bridge; stable private overlay connectivity remains unresolved.
 - The existing n8n database is shared/mixed and must not receive ALFA migrations. ALFA uses the separate `alfa_db` database on the same PostgreSQL instance; stable private overlay connectivity remains unresolved.
