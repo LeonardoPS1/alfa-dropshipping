@@ -376,7 +376,7 @@ Task 4.5 is complete: local contracts and production build pass; the guarded dis
 - PR3B child: `cd16462` on `feat/alfa-agent-pr3-dashboard-ui`, parent PR3A `7ad957a`; authored changed lines were **237 before the corrective commits**, and the final cumulative child count is **329 authored lines** excluding generated package-lock changes.
 - Rollback: revert only new corrective type fixes and task/status evidence to restore `cd16462`; reverting PR3B restores PR3A; reverting PR3A then returns to PR2D `1d988f7`. Preserve migration 002 and product/evaluation evidence; do not delete rows.
 - During the implementation correction, no amend, rebase, force, Compose/env edit, private networking, deployment, remote DB access, or PR4 work was performed.
-- Delivery state at the subsequent documentation finalization: PR3A `7ad957a` has not been pushed; the remote PR3B ref remains at intermediate `7ab5c43`. The local PR3B branch contained implementation commit `f5e2ad0` and now includes documentation commit `677b87e`; the parent will push both branches after this documentation commit.
+- Final delivery-state update: `origin/feat/alfa-agent-pr3-dashboard` is published at `7ad957a431cbacc76282335fcd709c0e467fd530`; `origin/feat/alfa-agent-pr3-dashboard-ui` is published at `a59265e68b8c474d5bcd02ee386a8a4f1702d500`. At the start of this documentation-only update, the local child tracked the remote cleanly at `a59265e`; this new docs commit is not yet pushed. No pull requests or merges were performed, and nothing was deployed.
 
 ### Final candidate measurement
 
