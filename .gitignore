@@ -21,6 +21,8 @@ coverage/
 tmp/
 .temp/
 .atl/
+.worktrees/
+.superpowers/
 
 # OS/editor files
 .DS_Store
